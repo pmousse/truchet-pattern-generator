@@ -29,11 +29,11 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>
-            <tr *ngFor="let design of savedDesigns">              <td style="width: 120px">
-                <div class="design-thumbnail" 
-                     [style.height]="design.gridSize ? (100 * (design.gridSize.rows / design.gridSize.cols)) + 'px' : '100px'">
-                  <img *ngIf="design.thumbnail" [src]="design.thumbnail" [alt]="design.name">
+          <tbody>            <tr *ngFor="let design of savedDesigns">              <td style="width: 120px">
+                <div class="design-thumbnail">
+                  <img *ngIf="design.thumbnail" [src]="design.thumbnail" [alt]="design.name" 
+                       [style.width]="design.gridSize.cols >= design.gridSize.rows ? '100px' : (100 * design.gridSize.cols / design.gridSize.rows) + 'px'"
+                       [style.height]="design.gridSize.cols >= design.gridSize.rows ? (100 * design.gridSize.rows / design.gridSize.cols) + 'px' : '100px'">
                   <div *ngIf="!design.thumbnail" class="no-thumbnail">No preview</div>
                 </div>
               </td>
@@ -89,8 +89,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
       border-radius: 4px;
       border: 1px solid #dee2e6;
       cursor: help;
-    }
-    .btn-group {
+    }    .btn-group {
       gap: 4px;
     }
     small.text-muted {
@@ -99,7 +98,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
       display: block;
     }    .design-thumbnail {
       width: 100px;
-      max-height: 100px;
+      height: 100px;
       margin-bottom: 0.5rem;
       border-radius: 4px;
       overflow: hidden;
@@ -109,9 +108,8 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
       justify-content: center;
     }
     .design-thumbnail img {
-      width: 100%;
-      height: auto;
       display: block;
+      object-fit: contain;
     }
     .no-thumbnail {
       width: 100%;

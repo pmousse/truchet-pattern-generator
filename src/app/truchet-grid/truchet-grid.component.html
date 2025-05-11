@@ -98,12 +98,17 @@
             [(ngModel)]="noiseFrequency"
             (ngModelChange)="applyNoisePattern()"
             min="0.1" max="5" step="0.1">
-        </div>
-        <button class="btn btn-outline-success"
+        </div>        <button class="btn btn-outline-success me-2"
           (click)="saveAsImage()"
           placement="bottom"
           ngbTooltip="Save as PNG">
-          <i class="bi bi-download"></i>
+          <i class="bi bi-image"></i>
+        </button>
+        <button class="btn btn-outline-success"
+          (click)="saveAsSVG()"
+          placement="bottom"
+          ngbTooltip="Save as SVG">
+          <i class="bi bi-code-slash"></i>
         </button>
       </div>
     </div>

@@ -8,11 +8,11 @@ import { Router } from '@angular/router';
 import { SavedDesign } from '../models/saved-design';
 import { SaveDesignModalComponent } from './save-design-modal.component';
 import { SuccessModalComponent } from './success-modal.component';
+import { GeneratorStateService } from '../services/generator-state.service';
 
 @Component({
   selector: 'app-truchet-grid',
-  standalone: true,
-  imports: [
+  standalone: true,  imports: [
     CommonModule,
     FormsModule,
     NgbTooltipModule,
@@ -33,11 +33,11 @@ export class TruchetGridComponent implements OnInit {
   tiles$;
   pattern$;
   isAutoRandomizing = false;
-  private randomizeInterval: any;
-  constructor(
+  private randomizeInterval: any;  constructor(
     private truchetService: TruchetService,
     private router: Router,
-    private modalService: NgbModal
+    private modalService: NgbModal,
+    private generatorState: GeneratorStateService
   ) {
     this.tiles$ = this.truchetService.getTiles();
     this.pattern$ = this.truchetService.getPattern();
@@ -75,9 +75,19 @@ export class TruchetGridComponent implements OnInit {
       // Load design into service
       this.truchetService.loadSavedDesign(design);
     }
-  }
-
-  ngOnInit() {
+  }  ngOnInit() {
+    // If there's no saved design in navigation state, load from generator state
+    if (!this.router.getCurrentNavigation()?.extras?.state?.['design']) {
+      const savedState = this.generatorState.getState();
+      this.rows = savedState.rows;
+      this.cols = savedState.cols;
+      this.tileSize = savedState.tileSize;
+      this.strokeColor = savedState.strokeColor;
+      this.backgroundColor = savedState.backgroundColor;
+      this.strokeWidth = savedState.strokeWidth;
+      this.noiseScale = savedState.noiseScale;
+      this.noiseFrequency = savedState.noiseFrequency;
+    }
     this.updateGridSize();
   }
 
@@ -105,20 +115,22 @@ export class TruchetGridComponent implements OnInit {
       this.randomizeInterval = null;
     }
   }
-
   updateGridSize() {
     this.truchetService.setGridSize(this.rows, this.cols);
+    this.generatorState.saveState({ rows: this.rows, cols: this.cols });
   }
 
   onTileRotate(row: number, col: number) {
     this.truchetService.rotateTile(row, col);
-  }
-  resetGrid() {
+  }  resetGrid() {
     // Get default values from service
     const defaults = this.truchetService.getDefaultValues();
 
     // Clear the current design ID so it's treated as new
     this.currentDesignId = undefined;
+    
+    // Reset the generator state service
+    this.generatorState.resetState();
 
     // Reset all component properties
     this.cols = defaults.gridSize.cols;
@@ -147,12 +159,15 @@ export class TruchetGridComponent implements OnInit {
   }  applyNoisePattern() {
     this.truchetService.setNoiseScale(this.noiseScale);
     this.truchetService.setNoiseFrequency(this.noiseFrequency);
+    this.generatorState.saveState({
+      noiseScale: this.noiseScale,
+      noiseFrequency: this.noiseFrequency
+    });
   }
 
   regenerateNoise() {
     this.truchetService.regenerateNoise();
   }
-
   updateStyle() {
     document.documentElement.style.setProperty('--truchet-stroke-color', this.strokeColor);
     document.documentElement.style.setProperty('--truchet-stroke-width', `${this.strokeWidth}px`);
@@ -162,15 +177,34 @@ export class TruchetGridComponent implements OnInit {
       const container = this.gridContainer.nativeElement;
       container.style.gridTemplateColumns = `repeat(${this.cols}, ${this.tileSize}px)`;
     }
+
+    // Save the current style state
+    this.generatorState.saveState({
+      strokeColor: this.strokeColor,
+      strokeWidth: this.strokeWidth,
+      backgroundColor: this.backgroundColor,
+      tileSize: this.tileSize
+    });
   }
 
   setPattern(pattern: 'curve' | 'triangle') {
     this.truchetService.setPattern(pattern);
   }
   async saveAsImage() {
-    const element = this.gridContainer.nativeElement;
-    const gridRect = element.getBoundingClientRect();
-    const imageData = await this.generateSVGImage(gridRect.width, gridRect.height * (this.rows / this.cols));
+    // Calculate dimensions to maintain proper aspect ratio
+    const baseSize = 800; // Base size for good resolution
+    const aspectRatio = this.cols / this.rows;
+    
+    let width, height;
+    if (aspectRatio > 1) {
+      width = baseSize;
+      height = baseSize / aspectRatio;
+    } else {
+      height = baseSize;
+      width = baseSize * aspectRatio;
+    }
+
+    const imageData = await this.generateSVGImage(width, height, true);
     
     if (imageData) {
       const link = document.createElement('a');
@@ -180,84 +214,117 @@ export class TruchetGridComponent implements OnInit {
     }
   }
 
-  private async generateSVGImage(width: number, height: number): Promise<string> {
-    // Calculate dimensions and scaling
-    const tileSize = width / this.cols;
-    const totalWidth = width;
-    const totalHeight = height;
+  async saveAsSVG() {
+    // Calculate dimensions to maintain proper aspect ratio
+    const baseSize = 800; // Base size for good resolution
+    const aspectRatio = this.cols / this.rows;
+    
+    let width, height;
+    if (aspectRatio > 1) {
+      width = baseSize;
+      height = baseSize / aspectRatio;
+    } else {
+      height = baseSize;
+      width = baseSize * aspectRatio;
+    }
+
+    const svgData = await this.generateSVGImage(width, height, false);
+    
+    if (svgData) {
+      const link = document.createElement('a');
+      link.download = 'truchet-pattern.svg';
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+  }
+
+  private async generateSVGImage(width: number, height: number, toPNG: boolean = false): Promise<string> {
+    // Calculate tile size to maintain proper proportions
+    const tileSize = Math.min(width / this.cols, height / this.rows);
+    const totalWidth = tileSize * this.cols;
+    const totalHeight = tileSize * this.rows;
     
     // Calculate stroke width relative to tile size
     const scaledStrokeWidth = (this.strokeWidth / 100) * tileSize;
     
-    // Create SVG that will contain all tiles
+    // Create SVG that will contain all tiles with proper namespace declarations
     const exportSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    exportSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    exportSvg.setAttribute('version', '1.1');
     exportSvg.setAttribute('width', totalWidth.toString());
     exportSvg.setAttribute('height', totalHeight.toString());
-    exportSvg.style.backgroundColor = this.backgroundColor;
+    exportSvg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+    exportSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    
+    // Add background rectangle
+    const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    background.setAttribute('width', totalWidth.toString());
+    background.setAttribute('height', totalHeight.toString());
+    background.setAttribute('fill', this.backgroundColor);
+    exportSvg.appendChild(background);
+    
+    // Subscribe to tiles to get current state
+    const currentTiles: TruchetTile[] = [];
+    this.tiles$.subscribe(tiles => {
+      tiles.forEach(row => row.forEach(tile => currentTiles.push(tile)));
+    }).unsubscribe();
     
     // Process each tile
-    const tiles = Array.from(this.gridContainer.nativeElement.getElementsByTagName('app-tile')) as HTMLElement[];
-    tiles.forEach((tile, index) => {
+    currentTiles.forEach((tileData, index) => {
       const row = Math.floor(index / this.cols);
       const col = index % this.cols;
       
-      const tileSvg = tile.querySelector('svg');
-      if (tileSvg) {
-        const tileGroup = tileSvg.querySelector('g');
-        if (tileGroup) {
-          // Create new group for this tile position
-          const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          g.setAttribute('transform', `translate(${col * tileSize}, ${row * tileSize})`);
-          
-          // Create the paths with the correct style
-          const paths = [
-            `M0,${tileSize/2} A${tileSize/2},${tileSize/2} 0 0,0 ${tileSize/2},0`,
-            `M${tileSize/2},${tileSize} A${tileSize/2},${tileSize/2} 0 0,1 ${tileSize},${tileSize/2}`
-          ];
-          
-          // Create inner group for rotation around center
-          const rotationGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-          const transform = tileGroup.style.transform;
-          const match = transform.match(/rotate\(([\d.-]+)deg\)/);
-          if (match) {
-            const rotation = parseFloat(match[1]);
-            rotationGroup.setAttribute('transform', `rotate(${rotation} ${tileSize/2} ${tileSize/2})`);
-          }
-          
-          // Add paths to the rotation group
-          paths.forEach(d => {
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', d);
-            path.setAttribute('stroke', this.strokeColor);
-            path.setAttribute('stroke-width', scaledStrokeWidth.toString());
-            path.setAttribute('fill', 'none');
-            path.setAttribute('stroke-linecap', 'round');
-            rotationGroup.appendChild(path);
-          });
-          
-          g.appendChild(rotationGroup);
-          exportSvg.appendChild(g);
-        }
+      // Create group for this tile position
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', `translate(${col * tileSize} ${row * tileSize})`);
+
+      // Create rotation group
+      const rotationGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      rotationGroup.setAttribute('transform', `rotate(${tileData.rotation} ${tileSize/2} ${tileSize/2})`);
+
+      // Create paths based on the pattern
+      if (tileData.pattern === 'curve') {
+        [
+          `M 0 ${tileSize/2} A ${tileSize/2} ${tileSize/2} 0 0 0 ${tileSize/2} 0`,
+          `M ${tileSize/2} ${tileSize} A ${tileSize/2} ${tileSize/2} 0 0 1 ${tileSize} ${tileSize/2}`
+        ].forEach(pathData => {
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', pathData);
+          path.setAttribute('stroke', this.strokeColor);
+          path.setAttribute('stroke-width', scaledStrokeWidth.toString());
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke-linecap', 'round');
+          path.setAttribute('stroke-linejoin', 'round');
+          rotationGroup.appendChild(path);
+        });
+      } else {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M 0 0 L ${tileSize} 0 L 0 ${tileSize} Z`);
+        path.setAttribute('fill', this.strokeColor);
+        path.setAttribute('stroke', 'none');
+        rotationGroup.appendChild(path);
       }
+      
+      g.appendChild(rotationGroup);
+      exportSvg.appendChild(g);
     });
+
+    if (!toPNG) {
+      // For SVG output, return the SVG string with XML declaration
+      return '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n' + 
+             new XMLSerializer().serializeToString(exportSvg);
+    }
+
+    // For PNG output, convert to canvas
+    const svgString = new XMLSerializer().serializeToString(exportSvg);
+    const img = new Image();
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     
-    // Convert SVG to canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = totalWidth;
-    canvas.height = totalHeight;
-    const ctx = canvas.getContext('2d');
-    
-    if (ctx) {
-      // Draw background
-      ctx.fillStyle = this.backgroundColor;
-      ctx.fillRect(0, 0, totalWidth, totalHeight);
-      
-      // Convert SVG to image
-      const svgString = new XMLSerializer().serializeToString(exportSvg);
-      const img = new Image();
-      const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
+    try {
       // Wait for image to load
       await new Promise((resolve, reject) => {
         img.onload = resolve;
@@ -266,34 +333,37 @@ export class TruchetGridComponent implements OnInit {
       });
       
       // Draw on canvas
-      ctx.drawImage(img, 0, 0, totalWidth, totalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = totalWidth;
+      canvas.height = totalHeight;
+      const ctx = canvas.getContext('2d');
       
-      // Get image data
-      const imageData = canvas.toDataURL('image/png');
-      
-      // Cleanup
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, totalWidth, totalHeight);
+        return canvas.toDataURL('image/png');
+      }
+    } finally {
       URL.revokeObjectURL(url);
-      
-      return imageData;
     }
+    
     return '';
   }
   private async generateThumbnail(): Promise<string> {
-    // Generate a smaller version for the thumbnail
-    const maxDimension = 100;
-    const aspectRatio = this.rows / this.cols;
+    // Generate a smaller version for the thumbnail with improved resolution
+    const maxDimension = 200; // Increased from 100 for better quality
+    const aspectRatio = this.cols / this.rows; // Flipped to get the correct ratio
     
     let width: number;
     let height: number;
 
     if (aspectRatio > 1) {
-      // Taller than wide
-      height = maxDimension;
-      width = maxDimension / aspectRatio;
-    } else {
-      // Wider than tall or square
+      // Wider than tall
       width = maxDimension;
-      height = maxDimension * aspectRatio;
+      height = maxDimension / aspectRatio;
+    } else {
+      // Taller than wide or square
+      height = maxDimension;
+      width = maxDimension * aspectRatio;
     }
 
     return this.generateSVGImage(width, height);
