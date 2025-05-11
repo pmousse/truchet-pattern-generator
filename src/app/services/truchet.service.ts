@@ -160,4 +160,8 @@ export class TruchetService {
     };
     this.applyNoisePattern();
   }
+
+  getCurrentPattern(): 'curve' | 'triangle' {
+    return this.pattern.value;
+  }
 }

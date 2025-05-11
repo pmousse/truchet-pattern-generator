@@ -1,9 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { RouterOutlet, RouterModule } from '@angular/router';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { TruchetGridComponent } from './truchet-grid/truchet-grid.component';
 
 @Component({
   selector: 'app-root',
@@ -11,9 +9,8 @@ import { TruchetGridComponent } from './truchet-grid/truchet-grid.component';
   imports: [
     CommonModule,
     RouterOutlet,
-    FormsModule,
-    NgbModule,
-    TruchetGridComponent
+    RouterModule,
+    NgbModule
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'

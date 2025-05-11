@@ -202,4 +202,32 @@ export class TruchetGridComponent implements OnInit {
       URL.revokeObjectURL(url);
     }
   }
+  saveDesign() {
+    // Get current tiles state
+    const currentTiles: any[] = [];
+    this.tiles$.subscribe(tiles => {
+      tiles.forEach(row => currentTiles.push(...row));
+    });
+
+    // Create design object
+    const design = {
+      name: new Date().toLocaleString(), // Using timestamp as name for now
+      gridSize: this.cols,
+      pattern: this.truchetService.getCurrentPattern(),
+      tileRotations: currentTiles.map(t => t.rotation),
+      primaryColor: this.strokeColor,
+      secondaryColor: this.backgroundColor,
+      createdAt: new Date()
+    };
+
+    // Get existing designs or initialize empty array
+    const savedDesigns = JSON.parse(localStorage.getItem('truchetDesigns') || '[]');
+    savedDesigns.push(design);
+
+    // Save back to localStorage
+    localStorage.setItem('truchetDesigns', JSON.stringify(savedDesigns));
+
+    // Show confirmation (you can enhance this with a proper notification system later)
+    alert('Design saved!');
+  }
 }
