@@ -7,6 +7,7 @@ import { TruchetService, TruchetTile } from '../services/truchet.service';
 import { Router } from '@angular/router';
 import { SavedDesign } from '../models/saved-design';
 import { SaveDesignModalComponent } from './save-design-modal.component';
+import { SuccessModalComponent } from './success-modal.component';
 
 @Component({
   selector: 'app-truchet-grid',
@@ -112,10 +113,12 @@ export class TruchetGridComponent implements OnInit {
   onTileRotate(row: number, col: number) {
     this.truchetService.rotateTile(row, col);
   }
-
   resetGrid() {
     // Get default values from service
     const defaults = this.truchetService.getDefaultValues();
+
+    // Clear the current design ID so it's treated as new
+    this.currentDesignId = undefined;
 
     // Reset all component properties
     this.cols = defaults.gridSize.cols;
@@ -359,13 +362,10 @@ export class TruchetGridComponent implements OnInit {
     if (!shouldSaveAsNew && this.currentDesignId) {
       // Update existing design
       const index = savedDesigns.findIndex((d: SavedDesign) => d.id === this.currentDesignId);
-      if (index !== -1) {
-        savedDesigns[index] = design;
+      if (index !== -1) {        savedDesigns[index] = design;
         localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
-        this.modalService.open({
-          content: 'Design updated successfully!',
-          buttons: ['OK']
-        });
+        const modalRef = this.modalService.open(SuccessModalComponent);
+        modalRef.componentInstance.message = 'Design updated successfully!';
         return;
       }
     }
@@ -378,12 +378,9 @@ export class TruchetGridComponent implements OnInit {
     });
     design.id = maxId + 1;
     this.currentDesignId = design.id;
-    
-    savedDesigns.push(design);
+      savedDesigns.push(design);
     localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
-    this.modalService.open({
-      content: 'Design saved successfully!',
-      buttons: ['OK']
-    });
+    const modalRef = this.modalService.open(SuccessModalComponent);
+    modalRef.componentInstance.message = 'Design saved successfully!';
   }
 }
