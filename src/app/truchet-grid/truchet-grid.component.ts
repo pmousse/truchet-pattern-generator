@@ -217,17 +217,22 @@ export class TruchetGridComponent implements OnInit {
       tileRotations: currentTiles.map(t => t.rotation),
       primaryColor: this.strokeColor,
       secondaryColor: this.backgroundColor,
-      createdAt: new Date()
+      createdAt: new Date(),
+      strokeWidth: this.strokeWidth,
+      tileSize: this.tileSize,
+      noiseScale: this.noiseScale,
+      noiseFrequency: this.noiseFrequency,
+      noiseOffset: this.truchetService.getNoiseOffset() // Add this line
     };
 
     // Get existing designs or initialize empty array
-    const savedDesigns = JSON.parse(localStorage.getItem('truchetDesigns') || '[]');
+    const savedDesigns = JSON.parse(localStorage.getItem('savedDesigns') || '[]');
     savedDesigns.push(design);
 
     // Save back to localStorage
-    localStorage.setItem('truchetDesigns', JSON.stringify(savedDesigns));
+    localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
 
-    // Show confirmation (you can enhance this with a proper notification system later)
+    // Show confirmation
     alert('Design saved!');
   }
 }

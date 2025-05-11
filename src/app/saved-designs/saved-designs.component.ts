@@ -1,99 +1,152 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SavedDesign } from '../models/saved-design';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
   selector: 'app-saved-designs',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, NgbModule, DatePipe],
   template: `
     <div class="container py-4">
       <h2>Saved Designs</h2>
-      <div class="row">
-        <div class="col-md-4 mb-4" *ngFor="let design of savedDesigns">
-          <div class="card">
-            <div class="card-header">
-              {{ design.name }}
-            </div>
-            <div class="card-body">
-              <div class="design-preview" 
-                   [style.background-color]="design.secondaryColor"
-                   [style.border]="'2px solid ' + design.primaryColor">
-                <div class="preview-text">
-                  {{ design.gridSize }}x{{ design.gridSize }} grid
-                  <br>
-                  Pattern: {{ design.pattern }}
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Grid Size</th>
+              <th>Pattern</th>
+              <th>Colors</th>
+              <th>Settings</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let design of savedDesigns">
+              <td>{{ design.name }}</td>
+              <td>{{ design.gridSize }}x{{ design.gridSize }}</td>
+              <td>{{ design.pattern }}</td>
+              <td>
+                <div class="color-preview">
+                  <span class="color-box" [style.background-color]="design.primaryColor" [title]="'Stroke Color: ' + design.primaryColor"></span>
+                  <span class="color-box" [style.background-color]="design.secondaryColor" [title]="'Background Color: ' + design.secondaryColor"></span>
                 </div>
-              </div>
-              <p class="text-muted mt-2">
-                Created: {{ design.createdAt | date:'medium' }}
-              </p>
-            </div>
-            <div class="card-footer">
-              <button class="btn btn-primary me-2" (click)="loadDesign(design)">
-                <i class="bi bi-brush"></i> Edit
-              </button>
-              <button class="btn btn-danger" (click)="deleteDesign(design)">
-                <i class="bi bi-trash"></i> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="alert alert-info" *ngIf="savedDesigns.length === 0">
-        No saved designs yet. Go to the Generator to create some!
+              </td>
+              <td>
+                <small class="text-muted">
+                  Tile Size: {{ design.tileSize }}px<br>
+                  Stroke Width: {{ design.strokeWidth }}px<br>
+                  Noise Scale: {{ design.noiseScale }}<br>
+                  Noise Freq: {{ design.noiseFrequency }}<br>
+                  Noise Seed: {{ design.noiseOffset.x | number:'1.2-2' }}, {{ design.noiseOffset.y | number:'1.2-2' }}
+                </small>
+              </td>
+              <td>{{ design.createdAt | date:'medium' }}</td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-primary" (click)="editDesign(design)">
+                    <i class="bi bi-pencil"></i> Edit
+                  </button>
+                  <button class="btn btn-danger" (click)="deleteDesign(design)">
+                    <i class="bi bi-trash"></i> Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="savedDesigns.length === 0">
+              <td colspan="7" class="text-center">
+                No saved designs yet. Create some patterns in the Generator!
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   `,
   styles: [`
-    .design-preview {
-      height: 150px;
-      margin: 1rem 0;
-      border-radius: 4px;
+    .color-preview {
       display: flex;
+      gap: 4px;
       align-items: center;
-      justify-content: center;
-      text-align: center;
     }
-    .preview-text {
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 1rem;
+    .color-box {
+      width: 20px;
+      height: 20px;
       border-radius: 4px;
+      border: 1px solid #dee2e6;
+      cursor: help;
+    }
+    .btn-group {
+      gap: 4px;
+    }
+    small.text-muted {
+      font-size: 0.85em;
+      line-height: 1.4;
+      display: block;
     }
   `]
 })
 export class SavedDesignsComponent implements OnInit {
   savedDesigns: SavedDesign[] = [];
 
-  constructor() {
-    // Load designs from localStorage
-    const designsJson = localStorage.getItem('truchetDesigns');
-    if (designsJson) {
-      const designs = JSON.parse(designsJson);
-      this.savedDesigns = designs.map((d: any) => ({
-        ...d,
-        createdAt: new Date(d.createdAt)
-      }));
+  constructor() {}
+
+  ngOnInit() {
+    this.loadSavedDesigns();
+  }
+
+  loadSavedDesigns() {
+    const savedDesignsJson = localStorage.getItem('savedDesigns');
+    if (savedDesignsJson) {
+      try {
+        this.savedDesigns = JSON.parse(savedDesignsJson);
+        // Sort designs by creation date, newest first
+        this.savedDesigns.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+      } catch (error) {
+        console.error('Error loading saved designs:', error);
+        this.savedDesigns = [];
+      }
+    } else {
+      this.savedDesigns = [];
     }
   }
 
-  ngOnInit() {}
-
-  loadDesign(design: SavedDesign) {
-    // Navigate to the generator with the design ID
-    window.location.href = `/generator?design=${design.id}`;
+  editDesign(design: SavedDesign) {
+    // TODO: Implement edit functionality
+    console.log('Edit design:', design);
   }
 
   deleteDesign(design: SavedDesign) {
     if (confirm('Are you sure you want to delete this design?')) {
-      // Get current designs
-      const designs = this.savedDesigns.filter(d => d !== design);
-      // Update localStorage
-      localStorage.setItem('truchetDesigns', JSON.stringify(designs));
-      // Update view
-      this.savedDesigns = designs;
+      // Get fresh data from localStorage
+      const savedDesignsJson = localStorage.getItem('savedDesigns');
+      if (savedDesignsJson) {
+        try {
+          const allDesigns: SavedDesign[] = JSON.parse(savedDesignsJson);
+          // Find the index by matching all properties since we don't have a unique ID
+          const index = allDesigns.findIndex((d: SavedDesign) => 
+            d.name === design.name && 
+            d.createdAt === design.createdAt &&
+            d.gridSize === design.gridSize
+          );
+          
+          if (index > -1) {
+            allDesigns.splice(index, 1);
+            localStorage.setItem('savedDesigns', JSON.stringify(allDesigns));
+            // Reload the designs to refresh the view
+            this.loadSavedDesigns();
+          }
+        } catch (error) {
+          console.error('Error deleting design:', error);
+        }
+      }
     }
   }
 }

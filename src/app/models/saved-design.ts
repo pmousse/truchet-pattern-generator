@@ -7,4 +7,12 @@ export interface SavedDesign {
     primaryColor: string;
     secondaryColor: string;
     createdAt?: Date;
+    strokeWidth: number;
+    tileSize: number;
+    noiseScale: number;
+    noiseFrequency: number;
+    noiseOffset: {
+        x: number;
+        y: number;
+    };
 }

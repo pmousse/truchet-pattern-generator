@@ -161,6 +161,10 @@ export class TruchetService {
     this.applyNoisePattern();
   }
 
+  getNoiseOffset(): { x: number; y: number } {
+    return this.noiseOffset;
+  }
+
   getCurrentPattern(): 'curve' | 'triangle' {
     return this.pattern.value;
   }
