@@ -239,14 +239,15 @@ export class TruchetGridComponent implements OnInit {
       URL.revokeObjectURL(link.href);
     }
   }
-  private async generateSVGImage(width: number, height: number, toPNG: boolean = false): Promise<string> {    // Calculate tile size to maintain proper proportions
+  private async generateSVGImage(width: number, height: number, toPNG: boolean = false): Promise<string> {    
+    // Calculate tile size to maintain proper proportions
     const tileSize = Math.min(width / this.cols, height / this.rows);
     const totalWidth = tileSize * this.cols;
     const totalHeight = tileSize * this.rows;
     
     // Calculate stroke width as a percentage of tile size
-    const scaledStrokeWidth = (this.strokeWidth / 100) * tileSize * 1.0; // Scale factor for Inkscape compatibility
-    
+    const scaledStrokeWidth = (this.strokeWidth / 100) * tileSize * 1.0;
+
     // Create SVG that will contain all tiles with proper namespace declarations
     const exportSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -264,67 +265,60 @@ export class TruchetGridComponent implements OnInit {
     background.setAttribute('fill', this.backgroundColor);
     exportSvg.appendChild(background);
 
-    // Add defs section for clipping paths
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    exportSvg.appendChild(defs);
-    
+    // Create container groups for curves and triangles with common attributes
+    const curves = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    curves.setAttribute('fill', 'none');
+    curves.setAttribute('stroke', this.strokeColor);
+    curves.setAttribute('stroke-width', scaledStrokeWidth.toString());
+    curves.setAttribute('stroke-linecap', 'butt'); // Changed from 'round' to 'butt' to prevent overshoot
+    curves.setAttribute('stroke-linejoin', 'round'); // Keep round joins for smooth connections
+
+    const triangles = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    triangles.setAttribute('fill', this.strokeColor);
+    triangles.setAttribute('stroke', 'none');
+
     // Subscribe to tiles to get current state
     const currentTiles: TruchetTile[] = [];
     this.tiles$.subscribe(tiles => {
       tiles.forEach(row => row.forEach(tile => currentTiles.push(tile)));
     }).unsubscribe();
-    
+
     // Process each tile
     currentTiles.forEach((tileData, index) => {
       const row = Math.floor(index / this.cols);
       const col = index % this.cols;
-      const tileId = `tile-${row}-${col}`;
+      const x = col * tileSize;
+      const y = row * tileSize;
 
-      // Create clip path for this tile
-      const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-      clipPath.setAttribute('id', `clip-${tileId}`);
-      const clipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      clipRect.setAttribute('x', '0');
-      clipRect.setAttribute('y', '0');
-      clipRect.setAttribute('width', tileSize.toString());
-      clipRect.setAttribute('height', tileSize.toString());
-      clipPath.appendChild(clipRect);
-      defs.appendChild(clipPath);
-      
-      // Create group for this tile position
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.setAttribute('transform', `translate(${col * tileSize} ${row * tileSize})`);
-      g.setAttribute('clip-path', `url(#clip-${tileId})`);
+      // Create group for this tile with position and rotation
+      const tileGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      tileGroup.setAttribute('transform', 
+        `translate(${x},${y}) rotate(${tileData.rotation},${tileSize/2},${tileSize/2})`
+      );
 
-      // Create rotation group
-      const rotationGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      rotationGroup.setAttribute('transform', `rotate(${tileData.rotation} ${tileSize/2} ${tileSize/2})`);
-
-      // Create paths based on the pattern
       if (tileData.pattern === 'curve') {
+        // Create curves using simple coordinates relative to tile
         [
           `M 0 ${tileSize/2} A ${tileSize/2} ${tileSize/2} 0 0 0 ${tileSize/2} 0`,
           `M ${tileSize/2} ${tileSize} A ${tileSize/2} ${tileSize/2} 0 0 1 ${tileSize} ${tileSize/2}`
         ].forEach(pathData => {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', pathData);          path.setAttribute('stroke', this.strokeColor);
-          path.setAttribute('stroke-width', scaledStrokeWidth.toString());
-          path.setAttribute('fill', 'none');
-          path.setAttribute('stroke-linecap', 'round');
-          path.setAttribute('stroke-linejoin', 'round');
-          rotationGroup.appendChild(path);
+          path.setAttribute('d', pathData);
+          tileGroup.appendChild(path);
         });
+        curves.appendChild(tileGroup);
       } else {
+        // Create triangle using simple coordinates relative to tile
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', `M 0 0 L ${tileSize} 0 L 0 ${tileSize} Z`);
-        path.setAttribute('fill', this.strokeColor);
-        path.setAttribute('stroke', 'none');
-        rotationGroup.appendChild(path);
+        tileGroup.appendChild(path);
+        triangles.appendChild(tileGroup);
       }
-      
-      g.appendChild(rotationGroup);
-      exportSvg.appendChild(g);
     });
+
+    // Add the curve and triangle groups to the SVG
+    exportSvg.appendChild(curves);
+    exportSvg.appendChild(triangles);
 
     if (!toPNG) {
       // For SVG output, return the SVG string with XML declaration
