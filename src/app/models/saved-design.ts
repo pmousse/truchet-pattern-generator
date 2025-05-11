@@ -1,7 +1,10 @@
 export interface SavedDesign {
     id?: number;
     name: string;
-    gridSize: number;
+    gridSize: {
+        rows: number;
+        cols: number;
+    };
     pattern: string;
     tileRotations: number[];
     primaryColor: string;
@@ -15,4 +18,5 @@ export interface SavedDesign {
         x: number;
         y: number;
     };
+    thumbnail?: string; // Base64 encoded thumbnail image
 }

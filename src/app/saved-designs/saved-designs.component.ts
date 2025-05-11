@@ -15,6 +15,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
         <table class="table table-striped table-hover">
           <thead>
             <tr>
+              <th>Thumbnail</th>
               <th>Name</th>
               <th>Grid Size</th>
               <th>Pattern</th>
@@ -26,8 +27,14 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
           </thead>
           <tbody>
             <tr *ngFor="let design of savedDesigns">
+              <td style="width: 120px">
+                <div class="design-thumbnail">
+                  <img *ngIf="design.thumbnail" [src]="design.thumbnail" [alt]="design.name">
+                  <div *ngIf="!design.thumbnail" class="no-thumbnail">No preview</div>
+                </div>
+              </td>
               <td>{{ design.name }}</td>
-              <td>{{ design.gridSize }}x{{ design.gridSize }}</td>
+              <td>{{ design.gridSize.rows }}x{{ design.gridSize.cols }}</td>
               <td>{{ design.pattern }}</td>
               <td>
                 <div class="color-preview">
@@ -57,7 +64,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
               </td>
             </tr>
             <tr *ngIf="savedDesigns.length === 0">
-              <td colspan="7" class="text-center">
+              <td colspan="8" class="text-center">
                 No saved designs yet. Create some patterns in the Generator!
               </td>
             </tr>
@@ -86,6 +93,30 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
       font-size: 0.85em;
       line-height: 1.4;
       display: block;
+    }
+    .design-thumbnail {
+      width: 100px;
+      height: 100px;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #dee2e6;
+    }
+    .design-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .no-thumbnail {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f8f9fa;
+      color: #6c757d;
+      font-size: 0.8rem;
+      text-align: center;
     }
   `]
 })

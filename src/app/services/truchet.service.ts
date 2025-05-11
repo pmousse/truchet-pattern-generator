@@ -195,17 +195,17 @@ export class TruchetService {
       
       // Set pattern
       this.pattern.next(design.pattern as 'curve' | 'triangle');
-      
-      // Set grid size
-      this.gridSize.next({ rows: design.gridSize, cols: design.gridSize });
-
-      // Create grid with exactly the saved rotations
+        // Set grid size
+      this.gridSize.next({ 
+        rows: design.gridSize.rows, 
+        cols: design.gridSize.cols 
+      });      // Create grid with exactly the saved rotations
       const newGrid: TruchetTile[][] = [];
       let rotationIndex = 0;
       
-      for (let i = 0; i < design.gridSize; i++) {
+      for (let i = 0; i < design.gridSize.rows; i++) {
         const row: TruchetTile[] = [];
-        for (let j = 0; j < design.gridSize; j++) {
+        for (let j = 0; j < design.gridSize.cols; j++) {
           row.push({
             rotation: design.tileRotations[rotationIndex++],
             id: `tile-${i}-${j}`,

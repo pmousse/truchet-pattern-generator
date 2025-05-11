@@ -43,10 +43,16 @@ export class TruchetGridComponent implements OnInit {
     const navigation = this.router.getCurrentNavigation();
     const design = navigation?.extras?.state?.['design'] as SavedDesign;
     
-    if (design) {
-      // Set component properties
-      this.cols = design.gridSize;
-      this.rows = design.gridSize;
+    if (design) {      // Set component properties
+      if (typeof design.gridSize === 'number') {
+        // Handle old format where gridSize was a single number
+        this.cols = design.gridSize;
+        this.rows = design.gridSize;
+      } else {
+        // Handle new format with separate rows and columns
+        this.cols = design.gridSize.cols;
+        this.rows = design.gridSize.rows;
+      }
       this.strokeColor = design.primaryColor;
       this.backgroundColor = design.secondaryColor;
       this.strokeWidth = design.strokeWidth;
@@ -152,15 +158,24 @@ export class TruchetGridComponent implements OnInit {
   setPattern(pattern: 'curve' | 'triangle') {
     this.truchetService.setPattern(pattern);
   }
-
   async saveAsImage() {
     const element = this.gridContainer.nativeElement;
     const gridRect = element.getBoundingClientRect();
+    const imageData = await this.generateSVGImage(gridRect.width, gridRect.height * (this.rows / this.cols));
     
+    if (imageData) {
+      const link = document.createElement('a');
+      link.download = 'truchet-pattern.png';
+      link.href = imageData;
+      link.click();
+    }
+  }
+
+  private async generateSVGImage(width: number, height: number): Promise<string> {
     // Calculate dimensions and scaling
-    const tileSize = gridRect.width / this.cols;
-    const totalWidth = gridRect.width;
-    const totalHeight = tileSize * this.rows;
+    const tileSize = width / this.cols;
+    const totalWidth = width;
+    const totalHeight = height;
     
     // Calculate stroke width relative to tile size
     const scaledStrokeWidth = (this.strokeWidth / 100) * tileSize;
@@ -172,7 +187,7 @@ export class TruchetGridComponent implements OnInit {
     exportSvg.style.backgroundColor = this.backgroundColor;
     
     // Process each tile
-    const tiles = Array.from(element.getElementsByTagName('app-tile')) as HTMLElement[];
+    const tiles = Array.from(this.gridContainer.nativeElement.getElementsByTagName('app-tile')) as HTMLElement[];
     tiles.forEach((tile, index) => {
       const row = Math.floor(index / this.cols);
       const col = index % this.cols;
@@ -219,14 +234,11 @@ export class TruchetGridComponent implements OnInit {
     
     // Convert SVG to canvas
     const canvas = document.createElement('canvas');
-    const scale = window.devicePixelRatio || 1; // For better quality on high DPI displays
-    canvas.width = totalWidth * scale;
-    canvas.height = totalHeight * scale;
+    canvas.width = totalWidth;
+    canvas.height = totalHeight;
     const ctx = canvas.getContext('2d');
     
     if (ctx) {
-      ctx.scale(scale, scale);
-      
       // Draw background
       ctx.fillStyle = this.backgroundColor;
       ctx.fillRect(0, 0, totalWidth, totalHeight);
@@ -247,17 +259,25 @@ export class TruchetGridComponent implements OnInit {
       // Draw on canvas
       ctx.drawImage(img, 0, 0, totalWidth, totalHeight);
       
-      // Download
-      const link = document.createElement('a');
-      link.download = 'truchet-pattern.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      // Get image data
+      const imageData = canvas.toDataURL('image/png');
       
       // Cleanup
       URL.revokeObjectURL(url);
+      
+      return imageData;
     }
+    return '';
   }
-  saveDesign() {
+
+  private async generateThumbnail(): Promise<string> {
+    // Generate a smaller version for the thumbnail
+    const thumbnailSize = 400;
+    const aspectRatio = this.rows / this.cols;
+    return this.generateSVGImage(thumbnailSize, thumbnailSize * aspectRatio);
+  }
+
+  async saveDesign() {
     // Get current tiles state
     let currentTiles: TruchetTile[] = [];
     const subscription = this.tiles$.subscribe(tiles => {
@@ -269,10 +289,15 @@ export class TruchetGridComponent implements OnInit {
     });
     subscription.unsubscribe();
 
+    // Generate thumbnail
+    const thumbnail = await this.generateThumbnail();
+
     // Create design object
-    const design = {
-      name: new Date().toLocaleString(), // Using timestamp as name for now
-      gridSize: this.cols,
+    const design = {      name: new Date().toLocaleString(), // Using timestamp as name for now
+      gridSize: {
+        rows: this.rows,
+        cols: this.cols
+      },
       pattern: this.truchetService.getCurrentPattern(),
       tileRotations: currentTiles.map(t => t.rotation),
       primaryColor: this.strokeColor,
@@ -282,7 +307,8 @@ export class TruchetGridComponent implements OnInit {
       tileSize: this.tileSize,
       noiseScale: this.noiseScale,
       noiseFrequency: this.noiseFrequency,
-      noiseOffset: this.truchetService.getNoiseOffset()
+      noiseOffset: this.truchetService.getNoiseOffset(),
+      thumbnail: thumbnail
     };
 
     // Get existing designs or initialize empty array
