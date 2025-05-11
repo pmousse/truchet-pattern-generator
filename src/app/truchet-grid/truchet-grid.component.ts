@@ -26,11 +26,13 @@ export class TruchetGridComponent implements OnInit {
   noiseScale = 0.2;
   noiseFrequency = 1.0;
   tiles$;
+  pattern$;
   isAutoRandomizing = false;
   private randomizeInterval: any;
 
   constructor(private truchetService: TruchetService) {
     this.tiles$ = this.truchetService.getTiles();
+    this.pattern$ = this.truchetService.getPattern();
   }
 
   ngOnInit() {
@@ -90,6 +92,10 @@ export class TruchetGridComponent implements OnInit {
     root.style.setProperty('--truchet-stroke-color', this.strokeColor);
     root.style.setProperty('--truchet-stroke-width', `${this.strokeWidth}px`);
     root.style.setProperty('--truchet-background-color', this.backgroundColor);
+  }
+
+  setPattern(pattern: 'curve' | 'triangle') {
+    this.truchetService.setPattern(pattern);
   }
 
   async saveAsImage() {

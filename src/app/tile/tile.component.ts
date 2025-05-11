@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 })
 export class TileComponent {
   @Input() rotation: number = 0;
+  @Input() pattern: 'curve' | 'triangle' = 'curve';
   @Output() rotate = new EventEmitter<void>();
 
   onTileClick() {

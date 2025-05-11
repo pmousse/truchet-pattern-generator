@@ -5,6 +5,7 @@ import { createNoise2D } from 'simplex-noise';
 export interface TruchetTile {
   rotation: number; // 0, 90, 180, or 270 degrees
   id: string;
+  pattern: 'curve' | 'triangle'; // The type of pattern to display
 }
 
 @Injectable({
@@ -13,6 +14,7 @@ export interface TruchetTile {
 export class TruchetService {
   private gridSize = new BehaviorSubject<{ rows: number; cols: number }>({ rows: 8, cols: 8 });
   private tiles = new BehaviorSubject<TruchetTile[][]>([]);
+  private pattern = new BehaviorSubject<'curve' | 'triangle'>('curve');
   private noiseScale = new BehaviorSubject<number>(0.2);
   private noiseIntensity = new BehaviorSubject<number>(1.0);
   private noiseFrequency = new BehaviorSubject<number>(1.0);
@@ -25,13 +27,15 @@ export class TruchetService {
 
   private initializeGrid(size: { rows: number; cols: number }) {
     const newGrid: TruchetTile[][] = [];
+    const currentPattern = this.pattern.value;
     
     for (let i = 0; i < size.rows; i++) {
       const row: TruchetTile[] = [];
       for (let j = 0; j < size.cols; j++) {
         row.push({
           rotation: 0,
-          id: `tile-${i}-${j}`
+          id: `tile-${i}-${j}`,
+          pattern: currentPattern
         });
       }
       newGrid.push(row);
@@ -41,6 +45,22 @@ export class TruchetService {
 
   getTiles(): Observable<TruchetTile[][]> {
     return this.tiles.asObservable();
+  }
+
+  getPattern(): Observable<'curve' | 'triangle'> {
+    return this.pattern.asObservable();
+  }
+
+  setPattern(pattern: 'curve' | 'triangle') {
+    const currentGrid = this.tiles.value;
+    const newGrid = currentGrid.map(row => 
+      row.map(tile => ({
+        ...tile,
+        pattern: pattern
+      }))
+    );
+    this.pattern.next(pattern);
+    this.tiles.next(newGrid);
   }
 
   getGridSize(): Observable<{ rows: number; cols: number }> {

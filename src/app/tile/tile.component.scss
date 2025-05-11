@@ -19,7 +19,6 @@
   &:hover {
     opacity: 0.8;
   }
-
   .tile-path {
     stroke: var(--truchet-stroke-color);
     stroke-width: var(--truchet-stroke-width);
@@ -27,5 +26,10 @@
     stroke-linejoin: round;
     fill: none;
     shape-rendering: geometricPrecision;
+
+    &.filled-path {
+      fill: var(--truchet-stroke-color);
+      stroke: none;
+    }
   }
 }

@@ -35,12 +35,20 @@
             [(ngModel)]="cols"
             (ngModelChange)="updateGridSize()"
             min="1" max="200" step="1">
-        </div>
-        <div class="input-group me-2" style="width: auto;">          <label class="input-group-text bg-dark text-light border-secondary">Tile Size</label>
+        </div>        <div class="input-group me-2" style="width: auto;">          <label class="input-group-text bg-dark text-light border-secondary">Tile Size</label>
           <input type="number" class="form-control bg-dark text-light border-secondary" style="width: 80px;"
             [(ngModel)]="tileSize"
             (ngModelChange)="updateStyle()"
             min="25" max="200" step="25">
+        </div>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text bg-dark text-light border-secondary">Pattern</label>
+          <select class="form-select bg-dark text-light border-secondary" style="width: auto;"
+            [ngModel]="pattern$ | async"
+            (ngModelChange)="setPattern($event)">
+            <option value="curve">Curves</option>
+            <option value="triangle">Triangles</option>
+          </select>
         </div>
       </div>
       
@@ -97,9 +105,9 @@
       [style.grid-template-columns]="'repeat(' + cols + ', ' + tileSize + 'px)'"
       [style.--tile-size.px]="tileSize">
       <div class="grid-row" *ngFor="let row of tiles$ | async; let i = index">
-        <div class="grid-cell" *ngFor="let tile of row; let j = index">
-          <app-tile 
+        <div class="grid-cell" *ngFor="let tile of row; let j = index">          <app-tile 
             [rotation]="tile.rotation"
+            [pattern]="tile.pattern"
             (rotate)="onTileRotate(i, j)">
           </app-tile>
         </div>
