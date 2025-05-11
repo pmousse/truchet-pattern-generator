@@ -8,9 +8,13 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
   selector: 'app-saved-designs',
   standalone: true,
   imports: [CommonModule, RouterModule, NgbModule, DatePipe],
-  template: `
-    <div class="container py-4">
-      <h2>Saved Designs</h2>
+  template: `    <div class="container py-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Saved Designs</h2>
+        <button class="btn btn-danger" (click)="deleteAllDesigns()" *ngIf="savedDesigns.length > 0">
+          <i class="bi bi-trash"></i> Delete All
+        </button>
+      </div>
       <div class="table-responsive">
         <table class="table table-striped table-hover">
           <thead>
@@ -26,9 +30,9 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let design of savedDesigns">
-              <td style="width: 120px">
-                <div class="design-thumbnail">
+            <tr *ngFor="let design of savedDesigns">              <td style="width: 120px">
+                <div class="design-thumbnail" 
+                     [style.height]="design.gridSize ? (100 * (design.gridSize.rows / design.gridSize.cols)) + 'px' : '100px'">
                   <img *ngIf="design.thumbnail" [src]="design.thumbnail" [alt]="design.name">
                   <div *ngIf="!design.thumbnail" class="no-thumbnail">No preview</div>
                 </div>
@@ -93,19 +97,21 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
       font-size: 0.85em;
       line-height: 1.4;
       display: block;
-    }
-    .design-thumbnail {
+    }    .design-thumbnail {
       width: 100px;
-      height: 100px;
+      max-height: 100px;
       margin-bottom: 0.5rem;
       border-radius: 4px;
       overflow: hidden;
       border: 1px solid #dee2e6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .design-thumbnail img {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
+      height: auto;
+      display: block;
     }
     .no-thumbnail {
       width: 100%;
@@ -179,6 +185,19 @@ export class SavedDesignsComponent implements OnInit {
         } catch (error) {
           console.error('Error deleting design:', error);
         }
+      }
+    }
+  }
+
+  deleteAllDesigns() {
+    if (confirm('Are you sure you want to delete all designs? This action cannot be undone.')) {
+      try {
+        // Clear all designs from localStorage
+        localStorage.setItem('savedDesigns', '[]');
+        // Refresh the designs list
+        this.loadSavedDesigns();
+      } catch (error) {
+        console.error('Error deleting all designs:', error);
       }
     }
   }

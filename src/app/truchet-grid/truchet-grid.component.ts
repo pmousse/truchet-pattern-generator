@@ -1,11 +1,12 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbTooltipModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { TileComponent } from '../tile/tile.component';
 import { TruchetService, TruchetTile } from '../services/truchet.service';
 import { Router } from '@angular/router';
 import { SavedDesign } from '../models/saved-design';
+import { SaveDesignModalComponent } from './save-design-modal.component';
 
 @Component({
   selector: 'app-truchet-grid',
@@ -23,6 +24,7 @@ export class TruchetGridComponent implements OnInit {
   @ViewChild('gridContainer') gridContainer!: ElementRef;
   cols = 8;
   rows = 8;
+  currentDesignId?: number;  // Track the current design's ID
   tileSize = 100;  strokeColor = '#ffffff';
   backgroundColor = '#000000';  strokeWidth = 10;
   noiseScale = 0.2;
@@ -31,10 +33,10 @@ export class TruchetGridComponent implements OnInit {
   pattern$;
   isAutoRandomizing = false;
   private randomizeInterval: any;
-
   constructor(
     private truchetService: TruchetService,
-    private router: Router
+    private router: Router,
+    private modalService: NgbModal
   ) {
     this.tiles$ = this.truchetService.getTiles();
     this.pattern$ = this.truchetService.getPattern();
@@ -43,7 +45,11 @@ export class TruchetGridComponent implements OnInit {
     const navigation = this.router.getCurrentNavigation();
     const design = navigation?.extras?.state?.['design'] as SavedDesign;
     
-    if (design) {      // Set component properties
+    if (design) {
+      // Store the current design ID
+      this.currentDesignId = design.id;
+
+      // Set component properties
       if (typeof design.gridSize === 'number') {
         // Handle old format where gridSize was a single number
         this.cols = design.gridSize;
@@ -269,20 +275,31 @@ export class TruchetGridComponent implements OnInit {
     }
     return '';
   }
-
   private async generateThumbnail(): Promise<string> {
     // Generate a smaller version for the thumbnail
-    const thumbnailSize = 400;
+    const maxDimension = 100;
     const aspectRatio = this.rows / this.cols;
-    return this.generateSVGImage(thumbnailSize, thumbnailSize * aspectRatio);
-  }
+    
+    let width: number;
+    let height: number;
 
-  async saveDesign() {
+    if (aspectRatio > 1) {
+      // Taller than wide
+      height = maxDimension;
+      width = maxDimension / aspectRatio;
+    } else {
+      // Wider than tall or square
+      width = maxDimension;
+      height = maxDimension * aspectRatio;
+    }
+
+    return this.generateSVGImage(width, height);
+  }  async saveDesign() {
     // Get current tiles state
-    let currentTiles: TruchetTile[] = [];
+    const currentTiles: TruchetTile[] = [];
     const subscription = this.tiles$.subscribe(tiles => {
       tiles.forEach(row => {
-        row.forEach(tile => {
+        row.forEach((tile: TruchetTile) => {
           currentTiles.push(tile);
         });
       });
@@ -292,8 +309,35 @@ export class TruchetGridComponent implements OnInit {
     // Generate thumbnail
     const thumbnail = await this.generateThumbnail();
 
+    let shouldSaveAsNew = true;
+
+    // If we have a current design, show modal to ask user what to do
+    if (this.currentDesignId) {
+      try {
+        const modalRef = this.modalService.open(SaveDesignModalComponent, {
+          backdrop: 'static',
+          keyboard: false
+        });
+        
+        const result = await modalRef.result;
+        if (result === 'update') {
+          shouldSaveAsNew = false;
+        } else if (result === 'new') {
+          this.currentDesignId = undefined;
+        } else {
+          // Modal was dismissed/canceled
+          return;
+        }
+      } catch (err) {
+        // Modal was dismissed/canceled
+        return;
+      }
+    }
+
     // Create design object
-    const design = {      name: new Date().toLocaleString(), // Using timestamp as name for now
+    const design: SavedDesign = {
+      id: this.currentDesignId,
+      name: new Date().toLocaleString(),
       gridSize: {
         rows: this.rows,
         cols: this.cols
@@ -309,16 +353,37 @@ export class TruchetGridComponent implements OnInit {
       noiseFrequency: this.noiseFrequency,
       noiseOffset: this.truchetService.getNoiseOffset(),
       thumbnail: thumbnail
-    };
-
-    // Get existing designs or initialize empty array
+    };    // Get existing designs
     const savedDesigns = JSON.parse(localStorage.getItem('savedDesigns') || '[]');
+    
+    if (!shouldSaveAsNew && this.currentDesignId) {
+      // Update existing design
+      const index = savedDesigns.findIndex((d: SavedDesign) => d.id === this.currentDesignId);
+      if (index !== -1) {
+        savedDesigns[index] = design;
+        localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
+        this.modalService.open({
+          content: 'Design updated successfully!',
+          buttons: ['OK']
+        });
+        return;
+      }
+    }
+
+    // Save as new design
+    // Find the next available ID
+    let maxId = 0;
+    savedDesigns.forEach((d: SavedDesign) => {
+      if (d.id && d.id > maxId) maxId = d.id;
+    });
+    design.id = maxId + 1;
+    this.currentDesignId = design.id;
+    
     savedDesigns.push(design);
-
-    // Save back to localStorage
     localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
-
-    // Show confirmation
-    alert('Design saved!');
+    this.modalService.open({
+      content: 'Design saved successfully!',
+      buttons: ['OK']
+    });
   }
 }
