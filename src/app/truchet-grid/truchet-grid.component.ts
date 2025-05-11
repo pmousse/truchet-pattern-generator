@@ -39,45 +39,65 @@ export class TruchetGridComponent implements OnInit {
     private modalService: NgbModal,
     private generatorState: GeneratorStateService
   ) {
+    // Get router state immediately during construction
+    const navigation = this.router.getCurrentNavigation();
+    const state = navigation?.extras?.state;
+    this.design = state?.['design'] as SavedDesign;
+    
     this.tiles$ = this.truchetService.getTiles();
     this.pattern$ = this.truchetService.getPattern();
+  }
 
-    // Check for saved design in navigation state
-    const navigation = this.router.getCurrentNavigation();
-    const design = navigation?.extras?.state?.['design'] as SavedDesign;
-    
-    if (design) {
-      // Store the current design ID
-      this.currentDesignId = design.id;
+  private design?: SavedDesign;
 
-      // Set component properties
-      if (typeof design.gridSize === 'number') {
-        // Handle old format where gridSize was a single number
-        this.cols = design.gridSize;
-        this.rows = design.gridSize;
-      } else {
-        // Handle new format with separate rows and columns
-        this.cols = design.gridSize.cols;
-        this.rows = design.gridSize.rows;
-      }
-      this.strokeColor = design.primaryColor;
-      this.backgroundColor = design.secondaryColor;
-      this.strokeWidth = design.strokeWidth;
-      this.tileSize = design.tileSize;
-      this.noiseScale = design.noiseScale;
-      this.noiseFrequency = design.noiseFrequency;
+  ngOnInit() {
+    if (this.design) {
+      // Reset to defaults first
+      const defaults = this.truchetService.getDefaultValues();
+      this.cols = defaults.gridSize.cols;
+      this.rows = defaults.gridSize.rows;
+      this.tileSize = defaults.tileSize;
+      this.strokeColor = defaults.primaryColor;
+      this.backgroundColor = defaults.secondaryColor;
+      this.strokeWidth = defaults.strokeWidth;
+      this.noiseScale = defaults.noiseScale;
+      this.noiseFrequency = defaults.noiseFrequency;
 
-      // Update styles immediately
-      requestAnimationFrame(() => {
-        this.updateStyle();
+      // Reset services
+      this.generatorState.resetState();
+      this.truchetService.resetToDefaults(false);
+
+      // Now load the design
+      this.currentDesignId = this.design.id;
+      this.cols = this.design.gridSize.cols;
+      this.rows = this.design.gridSize.rows;
+      this.strokeColor = this.design.primaryColor;
+      this.backgroundColor = this.design.secondaryColor;
+      this.strokeWidth = this.design.strokeWidth;
+      this.tileSize = this.design.tileSize;
+      this.noiseScale = this.design.noiseScale;
+      this.noiseFrequency = this.design.noiseFrequency;
+
+      // Update generator state with all values at once
+      this.generatorState.saveState({
+        rows: this.rows,
+        cols: this.cols,
+        tileSize: this.tileSize,
+        strokeColor: this.strokeColor,
+        backgroundColor: this.backgroundColor,
+        strokeWidth: this.strokeWidth,
+        noiseScale: this.noiseScale,
+        noiseFrequency: this.noiseFrequency
       });
 
-      // Load design into service
-      this.truchetService.loadSavedDesign(design);
-    }
-  }  ngOnInit() {
-    // If there's no saved design in navigation state, load from generator state
-    if (!this.router.getCurrentNavigation()?.extras?.state?.['design']) {
+      // Update visual styles and grid
+      this.updateStyle();
+      this.updateGridSize();
+
+      // Finally load the saved design pattern and tiles into the service
+      this.truchetService.loadSavedDesign(this.design);
+    } else {
+      // If there's no saved design in navigation state, load from generator state
       const savedState = this.generatorState.getState();
       this.rows = savedState.rows;
       this.cols = savedState.cols;
@@ -87,8 +107,10 @@ export class TruchetGridComponent implements OnInit {
       this.strokeWidth = savedState.strokeWidth;
       this.noiseScale = savedState.noiseScale;
       this.noiseFrequency = savedState.noiseFrequency;
+
+      this.updateStyle();
+      this.updateGridSize();
     }
-    this.updateGridSize();
   }
 
   ngOnDestroy() {
@@ -125,25 +147,32 @@ export class TruchetGridComponent implements OnInit {
   }  resetGrid() {
     // Get default values from service
     const defaults = this.truchetService.getDefaultValues();
+    const isEditingDesign = !!this.currentDesignId;
 
-    // Clear the current design ID so it's treated as new
-    this.currentDesignId = undefined;
+    // Clear the current design ID if not editing
+    if (!isEditingDesign) {
+      this.currentDesignId = undefined;
+    }
     
-    // Reset the generator state service
-    this.generatorState.resetState();
+    // Reset the generator state service if not editing
+    if (!isEditingDesign) {
+      this.generatorState.resetState();
+    }
 
-    // Reset all component properties
-    this.cols = defaults.gridSize.cols;
-    this.rows = defaults.gridSize.rows;
-    this.tileSize = defaults.tileSize;
-    this.strokeColor = defaults.primaryColor;
-    this.backgroundColor = defaults.secondaryColor;
-    this.strokeWidth = defaults.strokeWidth;
-    this.noiseScale = defaults.noiseScale;
-    this.noiseFrequency = defaults.noiseFrequency;
+    // Reset all component properties if not editing
+    if (!isEditingDesign) {
+      this.cols = defaults.gridSize.cols;
+      this.rows = defaults.gridSize.rows;
+      this.tileSize = defaults.tileSize;
+      this.strokeColor = defaults.primaryColor;
+      this.backgroundColor = defaults.secondaryColor;
+      this.strokeWidth = defaults.strokeWidth;
+      this.noiseScale = defaults.noiseScale;
+      this.noiseFrequency = defaults.noiseFrequency;
+    }
 
     // Reset service state
-    this.truchetService.resetToDefaults();
+    this.truchetService.resetToDefaults(isEditingDesign);
 
     // Update CSS variables
     this.updateStyle();

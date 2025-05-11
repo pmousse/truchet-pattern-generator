@@ -184,22 +184,18 @@ export class TruchetService {
   }
 
   loadSavedDesign(design: any) {
-    // Temporarily disable noise application
+    // Reset noise application flag
     this.shouldApplyNoise = false;
 
     try {
-      // Store noise settings but don't apply them
-      this.noiseScale.next(design.noiseScale);
-      this.noiseFrequency.next(design.noiseFrequency);
-      this.noiseOffset = design.noiseOffset;
-      
-      // Set pattern
+      // Reset pattern and grid size first
       this.pattern.next(design.pattern as 'curve' | 'triangle');
-        // Set grid size
       this.gridSize.next({ 
         rows: design.gridSize.rows, 
         cols: design.gridSize.cols 
-      });      // Create grid with exactly the saved rotations
+      });
+
+      // Create grid with exactly the saved rotations
       const newGrid: TruchetTile[][] = [];
       let rotationIndex = 0;
       
@@ -215,7 +211,10 @@ export class TruchetService {
         newGrid.push(row);
       }
 
-      // Update the grid with exact saved rotations
+      // Update all state at once
+      this.noiseScale.next(design.noiseScale);
+      this.noiseFrequency.next(design.noiseFrequency);
+      this.noiseOffset = design.noiseOffset || { x: Math.random() * 1000, y: Math.random() * 1000 };
       this.tiles.next(newGrid);
     } finally {
       // Re-enable noise application for future updates
@@ -223,7 +222,13 @@ export class TruchetService {
     }
   }
 
-  resetToDefaults() {
+  resetToDefaults(preserveState = false) {
+    if (preserveState) {
+      // Only reset the noise offset to get a fresh pattern
+      this.noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
+      return;
+    }
+
     // Reset all parameters to defaults
     this.pattern.next(this.DEFAULT_PATTERN);
     this.gridSize.next(this.DEFAULT_GRID_SIZE);

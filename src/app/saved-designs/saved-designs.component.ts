@@ -156,7 +156,8 @@ export class SavedDesignsComponent implements OnInit {
   editDesign(design: SavedDesign) {
     // Navigate to generator with the design state
     this.router.navigate(['/generator'], {
-      state: { design }
+      state: { design },
+      skipLocationChange: false // Make sure the navigation state is preserved
     });
   }
 
