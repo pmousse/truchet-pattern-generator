@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterModule } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
@@ -9,7 +9,8 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
   imports: [
     CommonModule,
     RouterOutlet,
-    RouterModule,
+    RouterLink,
+    RouterLinkActive,
     NgbModule
   ],
   templateUrl: './app.component.html',

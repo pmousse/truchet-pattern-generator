@@ -1,13 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { SavedDesign } from '../models/saved-design';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
   selector: 'app-saved-designs',
   standalone: true,
-  imports: [CommonModule, RouterModule, NgbModule, DatePipe],
+  imports: [CommonModule, NgbModule, DatePipe],
   template: `    <div class="container py-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Saved Designs</h2>
