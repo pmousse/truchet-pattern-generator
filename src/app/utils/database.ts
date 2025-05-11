@@ -1,10 +1,18 @@
-import { app } from 'electron';
-import * as path from 'path';
+/**
+ * Database utility functions for browser storage
+ */
 
-export const getDatabasePath = () => {
-  if (app) {
-    return path.join(app.getPath('userData'), 'truchet-designs.db');
-  }
-  // Fallback for development
-  return path.join(process.env['HOME'] || process.env['USERPROFILE'] || '.', '.truchet-designs.db');
+/**
+ * Gets the prefix used for all database keys in localStorage
+ */
+export const getDatabasePrefix = () => {
+  return 'truchet-generator:';
+};
+
+/**
+ * Gets all database keys from localStorage
+ */
+export const getDatabaseKeys = () => {
+  return Object.keys(localStorage)
+    .filter(key => key.startsWith(getDatabasePrefix()));
 };
