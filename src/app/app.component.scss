@@ -1,0 +1,15 @@
+// We can rely on Bootstrap classes in the template
+// No custom styles needed
+
+.container {
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+h1 {
+  color: var(--bs-body-color);
+  font-weight: 300;
+}

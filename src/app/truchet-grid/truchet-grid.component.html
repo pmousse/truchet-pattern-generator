@@ -1,0 +1,101 @@
+<div class="truchet-container">
+  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
+    <div class="container-fluid">
+      <div class="navbar-nav me-auto">
+        <button class="btn btn-outline-secondary me-2" 
+          (click)="resetGrid()"
+          placement="bottom"
+          ngbTooltip="Reset Grid">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+        <button class="btn btn-outline-secondary me-2"
+          (click)="randomizeRotations()"
+          placement="bottom"
+          ngbTooltip="Randomize Pattern">
+          <i class="bi bi-shuffle"></i>
+        </button>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Grid Size</label>          <input type="number" class="form-control" style="width: 80px;"
+            [(ngModel)]="gridSize"
+            (ngModelChange)="updateGridSize()"
+            min="1" max="200" step="1">
+        </div>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Tile Size</label>
+          <input type="number" class="form-control" style="width: 80px;"
+            [(ngModel)]="tileSize"
+            min="25" max="200" step="25">
+        </div>
+      </div>
+      
+      <div class="navbar-nav ms-auto">
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Color</label>
+          <input type="color" class="form-control form-control-color"
+            [(ngModel)]="strokeColor"
+            (ngModelChange)="updateStyle()">
+        </div>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Background</label>
+          <input type="color" class="form-control form-control-color"
+            [(ngModel)]="backgroundColor"
+            (ngModelChange)="updateStyle()">
+        </div>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Stroke</label>          <input type="range" class="form-range align-self-center mx-2" style="width: 100px;"
+            [(ngModel)]="strokeWidth"
+            (ngModelChange)="updateStyle()"
+            min="2" max="30">
+        </div>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Noise</label>
+          <input type="range" class="form-range align-self-center mx-2" style="width: 100px;"
+            [(ngModel)]="noiseScale"
+            (ngModelChange)="applyNoisePattern()"
+            min="0.05" max="1" step="0.01">
+        </div>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Intensity</label>
+          <input type="range" class="form-range align-self-center mx-2" style="width: 100px;"
+            [(ngModel)]="noiseIntensity"
+            (ngModelChange)="applyNoisePattern()"
+            min="0" max="1" step="0.1">
+          <button class="btn btn-outline-secondary"
+            (click)="regenerateNoise()"
+            placement="bottom"
+            ngbTooltip="New Noise Pattern">
+            <i class="bi bi-dice-5"></i>
+          </button>
+        </div>
+        <div class="input-group me-2" style="width: auto;">
+          <label class="input-group-text">Frequency</label>
+          <input type="range" class="form-range align-self-center mx-2" style="width: 100px;"
+            [(ngModel)]="noiseFrequency"
+            (ngModelChange)="applyNoisePattern()"
+            min="0.1" max="5" step="0.1">
+        </div>
+        <button class="btn btn-success"
+          (click)="saveAsImage()"
+          placement="bottom"
+          ngbTooltip="Save as PNG">
+          <i class="bi bi-download"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+  
+  <div class="grid-container">
+    <div class="grid" #gridContainer 
+      [style.grid-template-columns]="'repeat(' + cols + ', 1fr)'"
+      [style.--tile-size.px]="tileSize">
+      <div class="grid-row" *ngFor="let row of tiles$ | async; let i = index">
+        <div class="grid-cell" *ngFor="let tile of row; let j = index">
+          <app-tile 
+            [rotation]="tile.rotation"
+            (rotate)="onTileRotate(i, j)">
+          </app-tile>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

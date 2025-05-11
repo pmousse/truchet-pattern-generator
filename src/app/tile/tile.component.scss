@@ -1,0 +1,31 @@
+.tile {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  display: block;
+  line-height: 0;
+  
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+
+    g {
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+  }
+
+  &:hover {
+    background-color: var(--bs-gray-200);
+  }
+
+  .tile-path {
+    stroke: var(--truchet-stroke-color);
+    stroke-width: var(--truchet-stroke-width);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    shape-rendering: geometricPrecision;
+  }
+}
