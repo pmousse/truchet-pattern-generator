@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap';
 import { TileComponent } from '../tile/tile.component';
-import { TruchetService } from '../services/truchet.service';
+import { TruchetService, TruchetTile } from '../services/truchet.service';
+import { Router } from '@angular/router';
+import { SavedDesign } from '../models/saved-design';
 
 @Component({
   selector: 'app-truchet-grid',
@@ -30,9 +32,36 @@ export class TruchetGridComponent implements OnInit {
   isAutoRandomizing = false;
   private randomizeInterval: any;
 
-  constructor(private truchetService: TruchetService) {
+  constructor(
+    private truchetService: TruchetService,
+    private router: Router
+  ) {
     this.tiles$ = this.truchetService.getTiles();
     this.pattern$ = this.truchetService.getPattern();
+
+    // Check for saved design in navigation state
+    const navigation = this.router.getCurrentNavigation();
+    const design = navigation?.extras?.state?.['design'] as SavedDesign;
+    
+    if (design) {
+      // Set component properties
+      this.cols = design.gridSize;
+      this.rows = design.gridSize;
+      this.strokeColor = design.primaryColor;
+      this.backgroundColor = design.secondaryColor;
+      this.strokeWidth = design.strokeWidth;
+      this.tileSize = design.tileSize;
+      this.noiseScale = design.noiseScale;
+      this.noiseFrequency = design.noiseFrequency;
+
+      // Update styles immediately
+      requestAnimationFrame(() => {
+        this.updateStyle();
+      });
+
+      // Load design into service
+      this.truchetService.loadSavedDesign(design);
+    }
   }
 
   ngOnInit() {
@@ -73,7 +102,29 @@ export class TruchetGridComponent implements OnInit {
   }
 
   resetGrid() {
-    this.truchetService.resetGrid();
+    // Get default values from service
+    const defaults = this.truchetService.getDefaultValues();
+
+    // Reset all component properties
+    this.cols = defaults.gridSize.cols;
+    this.rows = defaults.gridSize.rows;
+    this.tileSize = defaults.tileSize;
+    this.strokeColor = defaults.primaryColor;
+    this.backgroundColor = defaults.secondaryColor;
+    this.strokeWidth = defaults.strokeWidth;
+    this.noiseScale = defaults.noiseScale;
+    this.noiseFrequency = defaults.noiseFrequency;
+
+    // Reset service state
+    this.truchetService.resetToDefaults();
+
+    // Update CSS variables
+    this.updateStyle();
+
+    // Stop auto-randomize if it's running
+    if (this.isAutoRandomizing) {
+      this.toggleAutoRandomize();
+    }
   }
 
   randomizeRotations() {
@@ -88,10 +139,14 @@ export class TruchetGridComponent implements OnInit {
   }
 
   updateStyle() {
-    const root = document.documentElement;
-    root.style.setProperty('--truchet-stroke-color', this.strokeColor);
-    root.style.setProperty('--truchet-stroke-width', `${this.strokeWidth}px`);
-    root.style.setProperty('--truchet-background-color', this.backgroundColor);
+    document.documentElement.style.setProperty('--truchet-stroke-color', this.strokeColor);
+    document.documentElement.style.setProperty('--truchet-stroke-width', `${this.strokeWidth}px`);
+    document.documentElement.style.setProperty('--truchet-background-color', this.backgroundColor);
+
+    if (this.gridContainer) {
+      const container = this.gridContainer.nativeElement;
+      container.style.gridTemplateColumns = `repeat(${this.cols}, ${this.tileSize}px)`;
+    }
   }
 
   setPattern(pattern: 'curve' | 'triangle') {
@@ -204,10 +259,15 @@ export class TruchetGridComponent implements OnInit {
   }
   saveDesign() {
     // Get current tiles state
-    const currentTiles: any[] = [];
-    this.tiles$.subscribe(tiles => {
-      tiles.forEach(row => currentTiles.push(...row));
+    let currentTiles: TruchetTile[] = [];
+    const subscription = this.tiles$.subscribe(tiles => {
+      tiles.forEach(row => {
+        row.forEach(tile => {
+          currentTiles.push(tile);
+        });
+      });
     });
+    subscription.unsubscribe();
 
     // Create design object
     const design = {
@@ -222,7 +282,7 @@ export class TruchetGridComponent implements OnInit {
       tileSize: this.tileSize,
       noiseScale: this.noiseScale,
       noiseFrequency: this.noiseFrequency,
-      noiseOffset: this.truchetService.getNoiseOffset() // Add this line
+      noiseOffset: this.truchetService.getNoiseOffset()
     };
 
     // Get existing designs or initialize empty array

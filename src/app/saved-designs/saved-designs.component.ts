@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { SavedDesign } from '../models/saved-design';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
@@ -92,7 +92,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 export class SavedDesignsComponent implements OnInit {
   savedDesigns: SavedDesign[] = [];
 
-  constructor() {}
+  constructor(private router: Router) {}
 
   ngOnInit() {
     this.loadSavedDesigns();
@@ -119,8 +119,10 @@ export class SavedDesignsComponent implements OnInit {
   }
 
   editDesign(design: SavedDesign) {
-    // TODO: Implement edit functionality
-    console.log('Edit design:', design);
+    // Navigate to generator with the design state
+    this.router.navigate(['/generator'], {
+      state: { design }
+    });
   }
 
   deleteDesign(design: SavedDesign) {
