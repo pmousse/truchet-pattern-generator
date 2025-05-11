@@ -220,20 +220,11 @@ export class TruchetGridComponent implements OnInit {
     this.truchetService.setPattern(pattern);
   }
   async saveAsImage() {
-    // Calculate dimensions to maintain proper aspect ratio
-    const baseSize = 800; // Base size for good resolution
-    const aspectRatio = this.cols / this.rows;
-    
-    let width, height;
-    if (aspectRatio > 1) {
-      width = baseSize;
-      height = baseSize / aspectRatio;
-    } else {
-      height = baseSize;
-      width = baseSize * aspectRatio;
-    }
+    // Use tile size to determine dimensions
+    const totalWidth = this.cols * this.tileSize;
+    const totalHeight = this.rows * this.tileSize;
 
-    const imageData = await this.generateSVGImage(width, height, true);
+    const imageData = await this.generateSVGImage(totalWidth, totalHeight, true);
     
     if (imageData) {
       const link = document.createElement('a');
@@ -244,20 +235,11 @@ export class TruchetGridComponent implements OnInit {
   }
 
   async saveAsSVG() {
-    // Calculate dimensions to maintain proper aspect ratio
-    const baseSize = 800; // Base size for good resolution
-    const aspectRatio = this.cols / this.rows;
-    
-    let width, height;
-    if (aspectRatio > 1) {
-      width = baseSize;
-      height = baseSize / aspectRatio;
-    } else {
-      height = baseSize;
-      width = baseSize * aspectRatio;
-    }
+    // Use tile size to determine dimensions
+    const totalWidth = this.cols * this.tileSize;
+    const totalHeight = this.rows * this.tileSize;
 
-    const svgData = await this.generateSVGImage(width, height, false);
+    const svgData = await this.generateSVGImage(totalWidth, totalHeight, false);
     
     if (svgData) {
       const link = document.createElement('a');
@@ -269,14 +251,13 @@ export class TruchetGridComponent implements OnInit {
     }
   }
   private async generateSVGImage(width: number, height: number, toPNG: boolean = false): Promise<string> {    
-    // Calculate tile size to maintain proper proportions
-    const tileSize = Math.min(width / this.cols, height / this.rows);
-    const totalWidth = tileSize * this.cols;
-    const totalHeight = tileSize * this.rows;
+    // Use the original dimensions without scaling
+    const totalWidth = width;
+    const totalHeight = height;
     
-    // Calculate stroke width as a percentage of tile size
-    const scaledStrokeWidth = (this.strokeWidth / 100) * tileSize * 1.0;
-
+    // Calculate stroke width relative to the original tile size
+    const scaledStrokeWidth = (this.strokeWidth / 100) * (width / this.cols);
+    
     // Create SVG that will contain all tiles with proper namespace declarations
     const exportSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -294,13 +275,16 @@ export class TruchetGridComponent implements OnInit {
     background.setAttribute('fill', this.backgroundColor);
     exportSvg.appendChild(background);
 
+    // Use actual tile size for rendering
+    const tileSize = width / this.cols;
+
     // Create container groups for curves and triangles with common attributes
     const curves = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     curves.setAttribute('fill', 'none');
     curves.setAttribute('stroke', this.strokeColor);
     curves.setAttribute('stroke-width', scaledStrokeWidth.toString());
-    curves.setAttribute('stroke-linecap', 'butt'); // Changed from 'round' to 'butt' to prevent overshoot
-    curves.setAttribute('stroke-linejoin', 'round'); // Keep round joins for smooth connections
+    curves.setAttribute('stroke-linecap', 'butt');
+    curves.setAttribute('stroke-linejoin', 'round');
 
     const triangles = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     triangles.setAttribute('fill', this.strokeColor);
@@ -369,7 +353,7 @@ export class TruchetGridComponent implements OnInit {
         img.src = url;
       });
       
-      // Draw on canvas
+      // Draw on canvas with the exact dimensions
       const canvas = document.createElement('canvas');
       canvas.width = totalWidth;
       canvas.height = totalHeight;
@@ -386,25 +370,13 @@ export class TruchetGridComponent implements OnInit {
     return '';
   }
   private async generateThumbnail(): Promise<string> {
-    // Generate a smaller version for the thumbnail
-    const maxDimension = 200;
-    const aspectRatio = this.cols / this.rows;
-    
-    let width: number;
-    let height: number;
+    // Use a smaller tile size for thumbnails
+    const thumbnailTileSize = 25; // This will give us 200px for an 8x8 grid
+    const totalWidth = this.cols * thumbnailTileSize;
+    const totalHeight = this.rows * thumbnailTileSize;
 
-    if (aspectRatio > 1) {
-      // Wider than tall
-      width = maxDimension;
-      height = maxDimension / aspectRatio;
-    } else {
-      // Taller than wide or square
-      height = maxDimension;
-      width = maxDimension * aspectRatio;
-    }
-
-    // Always generate as PNG for thumbnails to ensure browser compatibility
-    return this.generateSVGImage(width, height, true);
+    // Always generate as PNG for thumbnails
+    return this.generateSVGImage(totalWidth, totalHeight, true);
   }  async saveDesign() {
     // Get current tiles state
     const currentTiles: TruchetTile[] = [];
