@@ -2,14 +2,26 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 1rem;
-  background-color: var(--bs-light);
-  border-radius: 0.375rem;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  padding: 0;
+  background-color: var(--bs-dark);
+  width: 100%;
+
+  &.dark-theme {
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+
+    .form-range::-webkit-slider-thumb {
+      background-color: var(--bs-light);
+    }
+
+    .form-range::-webkit-slider-runnable-track {
+      background-color: var(--bs-secondary);
+    }
+  }
 
   .navbar {
-    border-radius: 0.375rem;
+    width: 100%;
+    border-radius: 0;
     flex-wrap: wrap;
     gap: 1rem;
     padding: 1rem;
@@ -43,13 +55,15 @@
   align-items: flex-start;
   width: 100%;
   padding: 1rem;
-  overflow: auto;
+  overflow: visible;
+  min-height: 0;
 }
 
 .grid {
   display: grid;
   gap: 0;
-  width: fit-content; // Only take up as much space as needed
+  width: max-content;
+  margin: 0 auto;
   background-color: var(--truchet-background-color, #ffffff);
 }
 
@@ -58,14 +72,11 @@
 }
 
 .grid-cell {
-  width: var(--tile-size, 100px);
-  height: var(--tile-size, 100px);
-  aspect-ratio: 1;
+  width: var(--tile-size);
+  height: var(--tile-size);
   display: block;
   padding: 0;
   margin: 0;
-  font-size: 0;
-  line-height: 0;
 }
 
 // Make sure tile component fills its container
