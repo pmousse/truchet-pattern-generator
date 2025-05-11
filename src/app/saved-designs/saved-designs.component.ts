@@ -31,9 +31,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
           </thead>
           <tbody>            <tr *ngFor="let design of savedDesigns">              <td style="width: 120px">
                 <div class="design-thumbnail">
-                  <img *ngIf="design.thumbnail" [src]="design.thumbnail" [alt]="design.name" 
-                       [style.width]="design.gridSize.cols >= design.gridSize.rows ? '100px' : (100 * design.gridSize.cols / design.gridSize.rows) + 'px'"
-                       [style.height]="design.gridSize.cols >= design.gridSize.rows ? (100 * design.gridSize.rows / design.gridSize.cols) + 'px' : '100px'">
+                  <img *ngIf="design.thumbnail" [src]="design.thumbnail" [alt]="design.name">
                   <div *ngIf="!design.thumbnail" class="no-thumbnail">No preview</div>
                 </div>
               </td>
@@ -106,9 +104,14 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
       display: flex;
       align-items: center;
       justify-content: center;
+      background-color: #f8f9fa;
     }
     .design-thumbnail img {
       display: block;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
       object-fit: contain;
     }
     .no-thumbnail {

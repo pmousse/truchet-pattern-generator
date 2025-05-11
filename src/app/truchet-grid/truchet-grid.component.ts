@@ -386,9 +386,9 @@ export class TruchetGridComponent implements OnInit {
     return '';
   }
   private async generateThumbnail(): Promise<string> {
-    // Generate a smaller version for the thumbnail with improved resolution
-    const maxDimension = 200; // Increased from 100 for better quality
-    const aspectRatio = this.cols / this.rows; // Flipped to get the correct ratio
+    // Generate a smaller version for the thumbnail
+    const maxDimension = 200;
+    const aspectRatio = this.cols / this.rows;
     
     let width: number;
     let height: number;
@@ -403,7 +403,8 @@ export class TruchetGridComponent implements OnInit {
       width = maxDimension * aspectRatio;
     }
 
-    return this.generateSVGImage(width, height);
+    // Always generate as PNG for thumbnails to ensure browser compatibility
+    return this.generateSVGImage(width, height, true);
   }  async saveDesign() {
     // Get current tiles state
     const currentTiles: TruchetTile[] = [];
