@@ -239,15 +239,13 @@ export class TruchetGridComponent implements OnInit {
       URL.revokeObjectURL(link.href);
     }
   }
-
-  private async generateSVGImage(width: number, height: number, toPNG: boolean = false): Promise<string> {
-    // Calculate tile size to maintain proper proportions
+  private async generateSVGImage(width: number, height: number, toPNG: boolean = false): Promise<string> {    // Calculate tile size to maintain proper proportions
     const tileSize = Math.min(width / this.cols, height / this.rows);
     const totalWidth = tileSize * this.cols;
     const totalHeight = tileSize * this.rows;
     
-    // Calculate stroke width relative to tile size
-    const scaledStrokeWidth = (this.strokeWidth / 100) * tileSize;
+    // Calculate stroke width as a percentage of tile size
+    const scaledStrokeWidth = (this.strokeWidth / 100) * tileSize * 1.0; // Scale factor for Inkscape compatibility
     
     // Create SVG that will contain all tiles with proper namespace declarations
     const exportSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -265,6 +263,10 @@ export class TruchetGridComponent implements OnInit {
     background.setAttribute('height', totalHeight.toString());
     background.setAttribute('fill', this.backgroundColor);
     exportSvg.appendChild(background);
+
+    // Add defs section for clipping paths
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    exportSvg.appendChild(defs);
     
     // Subscribe to tiles to get current state
     const currentTiles: TruchetTile[] = [];
@@ -276,10 +278,23 @@ export class TruchetGridComponent implements OnInit {
     currentTiles.forEach((tileData, index) => {
       const row = Math.floor(index / this.cols);
       const col = index % this.cols;
+      const tileId = `tile-${row}-${col}`;
+
+      // Create clip path for this tile
+      const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+      clipPath.setAttribute('id', `clip-${tileId}`);
+      const clipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      clipRect.setAttribute('x', '0');
+      clipRect.setAttribute('y', '0');
+      clipRect.setAttribute('width', tileSize.toString());
+      clipRect.setAttribute('height', tileSize.toString());
+      clipPath.appendChild(clipRect);
+      defs.appendChild(clipPath);
       
       // Create group for this tile position
       const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       g.setAttribute('transform', `translate(${col * tileSize} ${row * tileSize})`);
+      g.setAttribute('clip-path', `url(#clip-${tileId})`);
 
       // Create rotation group
       const rotationGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -292,8 +307,7 @@ export class TruchetGridComponent implements OnInit {
           `M ${tileSize/2} ${tileSize} A ${tileSize/2} ${tileSize/2} 0 0 1 ${tileSize} ${tileSize/2}`
         ].forEach(pathData => {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', pathData);
-          path.setAttribute('stroke', this.strokeColor);
+          path.setAttribute('d', pathData);          path.setAttribute('stroke', this.strokeColor);
           path.setAttribute('stroke-width', scaledStrokeWidth.toString());
           path.setAttribute('fill', 'none');
           path.setAttribute('stroke-linecap', 'round');
