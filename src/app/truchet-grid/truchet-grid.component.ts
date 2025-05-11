@@ -19,17 +19,15 @@ import { TruchetService } from '../services/truchet.service';
 })
 export class TruchetGridComponent implements OnInit {
   @ViewChild('gridContainer') gridContainer!: ElementRef;
-
-  gridSize = 8;
   cols = 8;
   rows = 8;
-  tileSize = 100;
-  strokeColor = '#000000';
-  backgroundColor = '#ffffff';
-  strokeWidth = 10;  noiseScale = 0.2;
-  noiseIntensity = 1.0;
+  tileSize = 100;  strokeColor = '#ffffff';
+  backgroundColor = '#000000';  strokeWidth = 10;
+  noiseScale = 0.2;
   noiseFrequency = 1.0;
   tiles$;
+  isAutoRandomizing = false;
+  private randomizeInterval: any;
 
   constructor(private truchetService: TruchetService) {
     this.tiles$ = this.truchetService.getTiles();
@@ -39,9 +37,32 @@ export class TruchetGridComponent implements OnInit {
     this.updateGridSize();
   }
 
+  ngOnDestroy() {
+    this.stopAutoRandomize();
+  }
+
+  toggleAutoRandomize() {
+    this.isAutoRandomizing = !this.isAutoRandomizing;
+    if (this.isAutoRandomizing) {
+      this.startAutoRandomize();
+    } else {
+      this.stopAutoRandomize();
+    }
+  }
+  private startAutoRandomize() {
+    this.randomizeInterval = setInterval(() => {
+      this.randomizeRotations();
+    }, 5000);
+  }
+
+  private stopAutoRandomize() {
+    if (this.randomizeInterval) {
+      clearInterval(this.randomizeInterval);
+      this.randomizeInterval = null;
+    }
+  }
+
   updateGridSize() {
-    this.rows = this.gridSize;
-    this.cols = this.gridSize;
     this.truchetService.setGridSize(this.rows, this.cols);
   }
 
@@ -55,10 +76,8 @@ export class TruchetGridComponent implements OnInit {
 
   randomizeRotations() {
     this.truchetService.randomizeRotations();
-  }
-  applyNoisePattern() {
+  }  applyNoisePattern() {
     this.truchetService.setNoiseScale(this.noiseScale);
-    this.truchetService.setNoiseIntensity(this.noiseIntensity);
     this.truchetService.setNoiseFrequency(this.noiseFrequency);
   }
 

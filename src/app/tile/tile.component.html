@@ -1,6 +1,6 @@
 <div class="tile" (click)="onTileClick()">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <g [style.transform]="'rotate(' + rotation + 'deg)'" [style.transform-origin]="'50px 50px'">
+    <g [ngStyle]="getRotationStyle()">
       <path class="tile-path" d="M0,50 A50,50 0 0,0 50,0"/>
       <path class="tile-path" d="M50,100 A50,50 0 0,1 100,50"/>
     </g>

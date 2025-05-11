@@ -7,12 +7,20 @@
           placement="bottom"
           ngbTooltip="Reset Grid">
           <i class="bi bi-arrow-counterclockwise"></i>
-        </button>
-        <button class="btn btn-outline-light me-2"
+        </button>        <button class="btn btn-outline-light me-2"
           (click)="randomizeRotations()"
           placement="bottom"
           ngbTooltip="Randomize Pattern">
           <i class="bi bi-shuffle"></i>
+        </button>
+        <button class="btn" 
+          [class.btn-outline-light]="!isAutoRandomizing"
+          [class.btn-light]="isAutoRandomizing"
+          (click)="toggleAutoRandomize()"
+          placement="bottom"
+          ngbTooltip="Toggle Auto-Randomize">
+          <i class="bi bi-play-circle" *ngIf="!isAutoRandomizing"></i>
+          <i class="bi bi-pause-circle" *ngIf="isAutoRandomizing"></i>
         </button>
         <div class="input-group me-2" style="width: auto;">
           <label class="input-group-text bg-dark text-light border-secondary">Rows</label>
@@ -61,21 +69,13 @@
           <input type="range" class="form-range align-self-center mx-2" style="width: 100px;"
             [(ngModel)]="noiseScale"
             (ngModelChange)="applyNoisePattern()"
-            min="0.05" max="1" step="0.01">
-        </div>
-        <div class="input-group me-2" style="width: auto;">
-          <label class="input-group-text bg-dark text-light border-secondary">Intensity</label>
-          <input type="range" class="form-range align-self-center mx-2" style="width: 100px;"
-            [(ngModel)]="noiseIntensity"
-            (ngModelChange)="applyNoisePattern()"
-            min="0" max="1" step="0.1">
-          <button class="btn btn-outline-light"
-            (click)="regenerateNoise()"
-            placement="bottom"
-            ngbTooltip="New Noise Pattern">
-            <i class="bi bi-dice-5"></i>
-          </button>
-        </div>
+            min="0.05" max="1" step="0.01">        </div>
+        <button class="btn btn-outline-light me-2"
+          (click)="regenerateNoise()"
+          placement="bottom"
+          ngbTooltip="New Noise Pattern">
+          <i class="bi bi-dice-5"></i>
+        </button>
         <div class="input-group me-2" style="width: auto;">
           <label class="input-group-text bg-dark text-light border-secondary">Frequency</label>
           <input type="range" class="form-range align-self-center mx-2" style="width: 100px;"

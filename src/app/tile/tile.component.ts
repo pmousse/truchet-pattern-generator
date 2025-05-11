@@ -21,7 +21,14 @@ export class TileComponent {
       // Reset the animation flag after the animation completes
       setTimeout(() => {
         this.isRotating = false;
-      }, 400); // Match the animation duration
+      }, 600); // Match the CSS transition duration
     }
+  }
+
+  getRotationStyle(): { [key: string]: string } {
+    return {
+      'transform': `rotate(${this.rotation}deg)`,
+      'transform-origin': '50% 50%'
+    };
   }
 }

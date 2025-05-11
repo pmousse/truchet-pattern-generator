@@ -3,16 +3,18 @@
 @use "bootstrap-icons/font/bootstrap-icons.css" as icons;
 
 :root {
-  --truchet-stroke-color: #2196F3;
+  --truchet-stroke-color: #ffffff;
   --truchet-stroke-width: 8px;
+  --truchet-background-color: #000000;
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--bs-light);
-  color: var(--bs-body-color);
+  background-color: var(--bs-dark);
+  color: var(--bs-light);
   font-family: var(--bs-body-font-family);
+  min-height: 100vh;
 }
 
 .container {
