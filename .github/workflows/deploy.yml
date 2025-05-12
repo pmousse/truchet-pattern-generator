@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: write
@@ -26,9 +26,6 @@ jobs:
         
       - name: Build
         run: npm run build -- --base-href ./
-        
-      - name: Copy index.html to 404.html
-        run: cp dist/my-angular-app/browser/index.html dist/my-angular-app/browser/404.html
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
