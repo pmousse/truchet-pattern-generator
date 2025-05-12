@@ -23,10 +23,24 @@ export class DesignStorageService {
 
     private saveDesigns(designs: SavedDesign[]): void {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(designs));
-    }
-
-    saveDesign(design: SavedDesign): SavedDesign {
+    }    saveDesign(design: SavedDesign): SavedDesign {
         const designs = this.getDesigns();
+        
+        // If design has an ID, update existing design
+        if (design.id !== undefined) {
+            const index = designs.findIndex(d => d.id === design.id);
+            if (index !== -1) {
+                const updatedDesign = {
+                    ...design,
+                    createdAt: new Date()
+                };
+                designs[index] = updatedDesign;
+                this.saveDesigns(designs);
+                return updatedDesign;
+            }
+        }
+        
+        // If no ID or design not found, create new
         const newDesign = {
             ...design,
             id: this.nextId++,
@@ -65,13 +79,17 @@ export class DesignStorageService {
         return true;
     }
 
-    deleteDesign(id: number): boolean {
+    deleteDesign(id: number): void {
         const designs = this.getDesigns();
         const index = designs.findIndex(d => d.id === id);
-        if (index === -1) return false;
+        if (index !== -1) {
+            designs.splice(index, 1);
+            this.saveDesigns(designs);
+        }
+    }
 
-        designs.splice(index, 1);
-        this.saveDesigns(designs);
-        return true;
+    deleteAllDesigns(): void {
+        this.saveDesigns([]);
+        this.nextId = 1;
     }
 }

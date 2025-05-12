@@ -32,8 +32,8 @@ export class TruchetService {
   constructor() {
     this.initializeGrid(this.gridSize.value);
   }
-
   private initializeGrid(size: { rows: number; cols: number }) {
+    // Create a completely fresh grid with default values
     const newGrid: TruchetTile[][] = [];
     const currentPattern = this.pattern.value;
     
@@ -41,14 +41,19 @@ export class TruchetService {
       const row: TruchetTile[] = [];
       for (let j = 0; j < size.cols; j++) {
         row.push({
-          rotation: 0,
+          rotation: 0, // Always start with 0 rotation
           id: `tile-${i}-${j}`,
           pattern: currentPattern
         });
       }
       newGrid.push(row);
     }
+
+    // Update the tiles without triggering noise pattern
+    const previousNoiseState = this.shouldApplyNoise;
+    this.shouldApplyNoise = false;
     this.tiles.next(newGrid);
+    this.shouldApplyNoise = previousNoiseState;
   }
 
   getTiles(): Observable<TruchetTile[][]> {
@@ -97,15 +102,16 @@ export class TruchetService {
     this.noiseFrequency.next(frequency);
     this.applyNoisePattern();
   }
-
   setGridSize(rows: number, cols: number): void {
-    // Only initialize with rotations if we're not loading a saved design
+    // Update grid size
+    this.gridSize.next({ rows, cols });
+    
+    // Always initialize the grid with new dimensions
+    this.initializeGrid({ rows, cols });
+
+    // Apply noise only if it's enabled
     if (this.shouldApplyNoise) {
-      this.gridSize.next({ rows, cols });
-      this.initializeGrid({ rows, cols });
       this.applyNoisePattern();
-    } else {
-      this.gridSize.next({ rows, cols });
     }
   }
 
@@ -220,25 +226,25 @@ export class TruchetService {
       // Re-enable noise application for future updates
       this.shouldApplyNoise = true;
     }
-  }
-
-  resetToDefaults(preserveState = false) {
-    if (preserveState) {
-      // Only reset the noise offset to get a fresh pattern
-      this.noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
-      return;
-    }
-
-    // Reset all parameters to defaults
+  }  resetToDefaults(preserveState = false) {
+    // Disable noise application during reset
+    this.shouldApplyNoise = false;
+    
+    // Reset all state to defaults
     this.pattern.next(this.DEFAULT_PATTERN);
     this.gridSize.next(this.DEFAULT_GRID_SIZE);
     this.noiseScale.next(this.DEFAULT_NOISE_SCALE);
     this.noiseIntensity.next(this.DEFAULT_NOISE_INTENSITY);
     this.noiseFrequency.next(this.DEFAULT_NOISE_FREQUENCY);
-    this.noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
     
-    // Reinitialize the grid
+    // Initialize a new grid with initial size and zero rotations
     this.initializeGrid(this.DEFAULT_GRID_SIZE);
+    
+    // Reset noise offset
+    this.noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
+
+    // Re-enable noise and apply fresh pattern if needed
+    this.shouldApplyNoise = true;
   }
 
   // Add getters for default values

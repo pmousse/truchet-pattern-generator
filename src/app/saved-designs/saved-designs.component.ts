@@ -3,6 +3,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { SavedDesign } from '../models/saved-design';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { DesignStorageService } from '../services/design-storage.service';
 
 @Component({
   selector: 'app-saved-designs',
@@ -130,30 +131,17 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 export class SavedDesignsComponent implements OnInit {
   savedDesigns: SavedDesign[] = [];
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private designStorage: DesignStorageService
+  ) {}
 
   ngOnInit() {
-    this.loadSavedDesigns();
+    this.loadDesigns();
   }
 
-  loadSavedDesigns() {
-    const savedDesignsJson = localStorage.getItem('savedDesigns');
-    if (savedDesignsJson) {
-      try {
-        this.savedDesigns = JSON.parse(savedDesignsJson);
-        // Sort designs by creation date, newest first
-        this.savedDesigns.sort((a, b) => {
-          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateB - dateA;
-        });
-      } catch (error) {
-        console.error('Error loading saved designs:', error);
-        this.savedDesigns = [];
-      }
-    } else {
-      this.savedDesigns = [];
-    }
+  loadDesigns() {
+    this.savedDesigns = this.designStorage.getAllDesigns();
   }
 
   editDesign(design: SavedDesign) {
@@ -165,42 +153,16 @@ export class SavedDesignsComponent implements OnInit {
   }
 
   deleteDesign(design: SavedDesign) {
-    if (confirm('Are you sure you want to delete this design?')) {
-      // Get fresh data from localStorage
-      const savedDesignsJson = localStorage.getItem('savedDesigns');
-      if (savedDesignsJson) {
-        try {
-          const allDesigns: SavedDesign[] = JSON.parse(savedDesignsJson);
-          // Find the index by matching all properties since we don't have a unique ID
-          const index = allDesigns.findIndex((d: SavedDesign) => 
-            d.name === design.name && 
-            d.createdAt === design.createdAt &&
-            d.gridSize === design.gridSize
-          );
-          
-          if (index > -1) {
-            allDesigns.splice(index, 1);
-            localStorage.setItem('savedDesigns', JSON.stringify(allDesigns));
-            // Reload the designs to refresh the view
-            this.loadSavedDesigns();
-          }
-        } catch (error) {
-          console.error('Error deleting design:', error);
-        }
-      }
+    if (design.id !== undefined && confirm('Are you sure you want to delete this design?')) {
+      this.designStorage.deleteDesign(design.id);
+      this.loadDesigns();
     }
   }
 
   deleteAllDesigns() {
-    if (confirm('Are you sure you want to delete all designs? This action cannot be undone.')) {
-      try {
-        // Clear all designs from localStorage
-        localStorage.setItem('savedDesigns', '[]');
-        // Refresh the designs list
-        this.loadSavedDesigns();
-      } catch (error) {
-        console.error('Error deleting all designs:', error);
-      }
+    if (confirm('Are you sure you want to delete all designs? This cannot be undone.')) {
+      this.designStorage.deleteAllDesigns();
+      this.loadDesigns();
     }
   }
 }

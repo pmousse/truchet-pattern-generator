@@ -9,10 +9,13 @@ import { SavedDesign } from '../models/saved-design';
 import { SaveDesignModalComponent } from './save-design-modal.component';
 import { SuccessModalComponent } from './success-modal.component';
 import { GeneratorStateService } from '../services/generator-state.service';
+import { DesignStorageService } from '../services/design-storage.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-truchet-grid',
-  standalone: true,  imports: [
+  standalone: true,
+  imports: [
     CommonModule,
     FormsModule,
     NgbTooltipModule,
@@ -30,6 +33,7 @@ export class TruchetGridComponent implements OnInit {
   backgroundColor = '#000000';  strokeWidth = 10;
   noiseScale = 0.2;
   noiseFrequency = 1.0;
+  noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
   tiles$;
   pattern$;
   isAutoRandomizing = false;
@@ -37,7 +41,8 @@ export class TruchetGridComponent implements OnInit {
     private truchetService: TruchetService,
     private router: Router,
     private modalService: NgbModal,
-    private generatorState: GeneratorStateService
+    private generatorState: GeneratorStateService,
+    private designStorage: DesignStorageService
   ) {
     // Get router state immediately during construction
     const navigation = this.router.getCurrentNavigation();
@@ -145,42 +150,33 @@ export class TruchetGridComponent implements OnInit {
   onTileRotate(row: number, col: number) {
     this.truchetService.rotateTile(row, col);
   }  resetGrid() {
-    // Get default values from service
-    const defaults = this.truchetService.getDefaultValues();
-    const isEditingDesign = !!this.currentDesignId;
-
-    // Clear the current design ID if not editing
-    if (!isEditingDesign) {
-      this.currentDesignId = undefined;
-    }
-    
-    // Reset the generator state service if not editing
-    if (!isEditingDesign) {
-      this.generatorState.resetState();
-    }
-
-    // Reset all component properties if not editing
-    if (!isEditingDesign) {
-      this.cols = defaults.gridSize.cols;
-      this.rows = defaults.gridSize.rows;
-      this.tileSize = defaults.tileSize;
-      this.strokeColor = defaults.primaryColor;
-      this.backgroundColor = defaults.secondaryColor;
-      this.strokeWidth = defaults.strokeWidth;
-      this.noiseScale = defaults.noiseScale;
-      this.noiseFrequency = defaults.noiseFrequency;
-    }
-
-    // Reset service state
-    this.truchetService.resetToDefaults(isEditingDesign);
-
-    // Update CSS variables
-    this.updateStyle();
-
     // Stop auto-randomize if it's running
     if (this.isAutoRandomizing) {
       this.toggleAutoRandomize();
     }
+
+    // Get default values from service
+    const defaults = this.truchetService.getDefaultValues();
+
+    // Reset component state to defaults
+    this.rows = defaults.gridSize.rows;
+    this.cols = defaults.gridSize.cols;
+    this.tileSize = defaults.tileSize;
+    this.strokeColor = defaults.primaryColor;
+    this.backgroundColor = defaults.secondaryColor;
+    this.strokeWidth = defaults.strokeWidth;
+    this.noiseScale = defaults.noiseScale;
+    this.noiseFrequency = defaults.noiseFrequency;
+    
+    // Clear current design
+    this.currentDesignId = undefined;
+
+    // Reset both services to defaults
+    this.truchetService.resetToDefaults(false); // This resets pattern, grid, and noise
+    this.generatorState.resetState(); // This saves default state values
+
+    // Update styles after state is reset
+    this.updateStyle();
   }
 
   randomizeRotations() {
@@ -379,22 +375,18 @@ export class TruchetGridComponent implements OnInit {
     return this.generateSVGImage(totalWidth, totalHeight, true);
   }  async saveDesign() {
     // Get current tiles state
-    const currentTiles: TruchetTile[] = [];
+    let currentTiles: TruchetTile[] = [];
     const subscription = this.tiles$.subscribe(tiles => {
       tiles.forEach(row => {
-        row.forEach((tile: TruchetTile) => {
-          currentTiles.push(tile);
+        row.forEach(tile => {
+          currentTiles.push({ ...tile });
         });
       });
     });
     subscription.unsubscribe();
 
     // Generate thumbnail
-    const thumbnail = await this.generateThumbnail();
-
-    let shouldSaveAsNew = true;
-
-    // If we have a current design, show modal to ask user what to do
+    const thumbnail = await this.generateThumbnail();    // If we have a current design, show modal to ask user what to do
     if (this.currentDesignId) {
       try {
         const modalRef = this.modalService.open(SaveDesignModalComponent, {
@@ -404,8 +396,10 @@ export class TruchetGridComponent implements OnInit {
         
         const result = await modalRef.result;
         if (result === 'update') {
-          shouldSaveAsNew = false;
+          // Keep the current ID for updating
+          // No need to change anything
         } else if (result === 'new') {
+          // Clear the ID to create a new design
           this.currentDesignId = undefined;
         } else {
           // Modal was dismissed/canceled
@@ -419,48 +413,34 @@ export class TruchetGridComponent implements OnInit {
 
     // Create design object
     const design: SavedDesign = {
-      id: this.currentDesignId,
+      id: this.currentDesignId, // Use the current ID directly - will be undefined for new designs
       name: new Date().toLocaleString(),
       gridSize: {
         rows: this.rows,
         cols: this.cols
       },
-      pattern: this.truchetService.getCurrentPattern(),
-      tileRotations: currentTiles.map(t => t.rotation),
+      tileSize: this.tileSize,
+      strokeWidth: this.strokeWidth,
+      pattern: await firstValueFrom(this.pattern$),
       primaryColor: this.strokeColor,
       secondaryColor: this.backgroundColor,
-      createdAt: new Date(),
-      strokeWidth: this.strokeWidth,
-      tileSize: this.tileSize,
       noiseScale: this.noiseScale,
       noiseFrequency: this.noiseFrequency,
-      noiseOffset: this.truchetService.getNoiseOffset(),
-      thumbnail: thumbnail
-    };    // Get existing designs
-    const savedDesigns = JSON.parse(localStorage.getItem('savedDesigns') || '[]');
-    
-    if (!shouldSaveAsNew && this.currentDesignId) {
-      // Update existing design
-      const index = savedDesigns.findIndex((d: SavedDesign) => d.id === this.currentDesignId);
-      if (index !== -1) {        savedDesigns[index] = design;
-        localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
-        const modalRef = this.modalService.open(SuccessModalComponent);
-        modalRef.componentInstance.message = 'Design updated successfully!';
-        return;
-      }
-    }
+      noiseOffset: { x: this.noiseOffset.x, y: this.noiseOffset.y },
+      thumbnail: thumbnail,
+      tileRotations: currentTiles.map(tile => tile.rotation)
+    };
 
-    // Save as new design
-    // Find the next available ID
-    let maxId = 0;
-    savedDesigns.forEach((d: SavedDesign) => {
-      if (d.id && d.id > maxId) maxId = d.id;
-    });
-    design.id = maxId + 1;
-    this.currentDesignId = design.id;
-      savedDesigns.push(design);
-    localStorage.setItem('savedDesigns', JSON.stringify(savedDesigns));
-    const modalRef = this.modalService.open(SuccessModalComponent);
+    // Save to storage using the service
+    const savedDesign = this.designStorage.saveDesign(design);
+    
+    // Update current design ID
+    this.currentDesignId = savedDesign.id;
+
+    // Show success message
+    const modalRef = this.modalService.open(SuccessModalComponent, { centered: true });
     modalRef.componentInstance.message = 'Design saved successfully!';
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    modalRef.close();
   }
 }
