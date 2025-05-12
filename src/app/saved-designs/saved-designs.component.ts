@@ -5,6 +5,8 @@ import { SavedDesign } from '../models/saved-design';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { DesignStorageService } from '../services/design-storage.service';
 
+type SortDirection = 'asc' | 'desc';
+
 @Component({
   selector: 'app-saved-designs',
   standalone: true,
@@ -25,12 +27,18 @@ import { DesignStorageService } from '../services/design-storage.service';
               <th>Grid Size</th>
               <th>Pattern</th>
               <th>Colors</th>
-              <th>Settings</th>
-              <th>Created</th>
+              <th>Settings</th>              <th (click)="toggleSort()" style="cursor: pointer">
+                Created 
+                <i class="bi" [ngClass]="{
+                  'bi-sort-down': sortDirection === 'desc',
+                  'bi-sort-up': sortDirection === 'asc',
+                  'bi-arrow-down-up': !sortDirection
+                }"></i>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>            <tr *ngFor="let design of savedDesigns">              <td style="width: 120px">
+          <tbody>            <tr *ngFor="let design of sortedDesigns">              <td style="width: 120px">
                 <div class="design-thumbnail">
                   <img *ngIf="design.thumbnail" [src]="design.thumbnail" [alt]="design.name">
                   <div *ngIf="!design.thumbnail" class="no-thumbnail">No preview</div>
@@ -130,6 +138,7 @@ import { DesignStorageService } from '../services/design-storage.service';
 })
 export class SavedDesignsComponent implements OnInit {
   savedDesigns: SavedDesign[] = [];
+  sortDirection: SortDirection | null = null;
 
   constructor(
     private router: Router,
@@ -164,5 +173,32 @@ export class SavedDesignsComponent implements OnInit {
       this.designStorage.deleteAllDesigns();
       this.loadDesigns();
     }
+  }
+
+  toggleSort() {
+    if (!this.sortDirection) {
+      this.sortDirection = 'desc';
+    } else if (this.sortDirection === 'desc') {
+      this.sortDirection = 'asc';
+    } else {
+      this.sortDirection = null;
+    }
+    // No need to manually sort, the getter will handle it
+  }
+  get sortedDesigns(): SavedDesign[] {
+    if (!this.sortDirection) {
+      // By default, show newest first
+      return [...this.savedDesigns].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
+
+    return [...this.savedDesigns].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return this.sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    });
   }
 }

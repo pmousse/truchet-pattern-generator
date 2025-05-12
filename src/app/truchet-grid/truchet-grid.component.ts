@@ -374,26 +374,19 @@ export class TruchetGridComponent implements OnInit {
     // Always generate as PNG for thumbnails
     return this.generateSVGImage(totalWidth, totalHeight, true);
   }  async saveDesign() {
-    // Get current tiles state
-    let currentTiles: TruchetTile[] = [];
-    const subscription = this.tiles$.subscribe(tiles => {
-      tiles.forEach(row => {
-        row.forEach(tile => {
-          currentTiles.push({ ...tile });
-        });
-      });
-    });
-    subscription.unsubscribe();
+    // Get the current tile grid
+    const currentGrid = await firstValueFrom(this.truchetService.getTiles());
+    if (!currentGrid || !currentGrid.length) return;
 
-    // Generate thumbnail
-    const thumbnail = await this.generateThumbnail();    // If we have a current design, show modal to ask user what to do
-    if (this.currentDesignId) {
+    const tileRotations = currentGrid.flat().map((tile: TruchetTile) => tile.rotation);
+
+    // Get thumbnail image
+    const thumbnail = await this.generateThumbnail();
+
+    // If we have a current design ID, ask if user wants to update or create new
+    if (this.currentDesignId !== undefined) {
+      const modalRef = this.modalService.open(SaveDesignModalComponent, { centered: true });
       try {
-        const modalRef = this.modalService.open(SaveDesignModalComponent, {
-          backdrop: 'static',
-          keyboard: false
-        });
-        
         const result = await modalRef.result;
         if (result === 'update') {
           // Keep the current ID for updating
@@ -419,16 +412,16 @@ export class TruchetGridComponent implements OnInit {
         rows: this.rows,
         cols: this.cols
       },
-      tileSize: this.tileSize,
-      strokeWidth: this.strokeWidth,
-      pattern: await firstValueFrom(this.pattern$),
+      pattern: await firstValueFrom(this.truchetService.getPattern()),
+      tileRotations,
       primaryColor: this.strokeColor,
       secondaryColor: this.backgroundColor,
+      strokeWidth: this.strokeWidth,
+      tileSize: this.tileSize,
       noiseScale: this.noiseScale,
       noiseFrequency: this.noiseFrequency,
       noiseOffset: { x: this.noiseOffset.x, y: this.noiseOffset.y },
-      thumbnail: thumbnail,
-      tileRotations: currentTiles.map(tile => tile.rotation)
+      thumbnail
     };
 
     // Save to storage using the service

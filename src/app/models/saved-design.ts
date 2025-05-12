@@ -9,7 +9,7 @@ export interface SavedDesign {
     tileRotations: number[];
     primaryColor: string;
     secondaryColor: string;
-    createdAt?: Date;
+    createdAt?: string; // Store as ISO string for consistent serialization
     strokeWidth: number;
     tileSize: number;
     noiseScale: number;

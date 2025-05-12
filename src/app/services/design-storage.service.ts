@@ -23,7 +23,9 @@ export class DesignStorageService {
 
     private saveDesigns(designs: SavedDesign[]): void {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(designs));
-    }    saveDesign(design: SavedDesign): SavedDesign {
+    }
+
+    saveDesign(design: SavedDesign): SavedDesign {
         const designs = this.getDesigns();
         
         // If design has an ID, update existing design
@@ -32,7 +34,8 @@ export class DesignStorageService {
             if (index !== -1) {
                 const updatedDesign = {
                     ...design,
-                    createdAt: new Date()
+                    // Keep the original creation date when updating
+                    createdAt: designs[index].createdAt || new Date().toISOString()
                 };
                 designs[index] = updatedDesign;
                 this.saveDesigns(designs);
@@ -44,27 +47,20 @@ export class DesignStorageService {
         const newDesign = {
             ...design,
             id: this.nextId++,
-            createdAt: new Date()
+            createdAt: new Date().toISOString() // Store as ISO string for consistent serialization
         };
         
         designs.push(newDesign);
         this.saveDesigns(designs);
         return newDesign;
-    }    getAllDesigns(): SavedDesign[] {
-        return this.getDesigns().map(design => ({
-            ...design,
-            createdAt: design.createdAt ? new Date(design.createdAt) : new Date()
-        }));
+    }
+
+    getAllDesigns(): SavedDesign[] {
+        return this.getDesigns();
     }
 
     getDesignById(id: number): SavedDesign | undefined {
-        const design = this.getDesigns().find(d => d.id === id);
-        if (!design) return undefined;
-
-        return {
-            ...design,
-            createdAt: design.createdAt ? new Date(design.createdAt) : new Date()
-        };
+        return this.getDesigns().find(d => d.id === id);
     }
 
     updateDesign(design: SavedDesign): boolean {
@@ -89,7 +85,6 @@ export class DesignStorageService {
     }
 
     deleteAllDesigns(): void {
-        this.saveDesigns([]);
-        this.nextId = 1;
+        localStorage.removeItem(this.STORAGE_KEY);
     }
 }
