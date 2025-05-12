@@ -3,8 +3,7 @@ import { Injectable } from '@angular/core';
 @Injectable({
   providedIn: 'root'
 })
-export class GeneratorStateService {
-  private state: {
+export class GeneratorStateService {  private state: {
     rows: number;
     cols: number;
     tileSize: number;
@@ -13,6 +12,8 @@ export class GeneratorStateService {
     strokeWidth: number;
     noiseScale: number;
     noiseFrequency: number;
+    pattern?: 'curve' | 'triangle';
+    tileRotations?: number[];
   } = {
     rows: 8,
     cols: 8,
@@ -35,7 +36,6 @@ export class GeneratorStateService {
   getGridSize() {
     return { rows: this.state.rows, cols: this.state.cols };
   }
-
   resetState() {
     this.state = {
       rows: 8,
@@ -45,7 +45,9 @@ export class GeneratorStateService {
       backgroundColor: '#000000',
       strokeWidth: 10,
       noiseScale: 0.2,
-      noiseFrequency: 1.0
+      noiseFrequency: 1.0,
+      pattern: 'curve',
+      tileRotations: new Array(64).fill(0) // 8x8 grid with 0 rotation
     };
   }
 }

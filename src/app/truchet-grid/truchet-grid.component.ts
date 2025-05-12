@@ -44,77 +44,103 @@ export class TruchetGridComponent implements OnInit {
     private generatorState: GeneratorStateService,
     private designStorage: DesignStorageService
   ) {
-    // Get router state immediately during construction
+    // Check if we're explicitly navigating with a design from gallery
     const navigation = this.router.getCurrentNavigation();
     const state = navigation?.extras?.state;
-    this.design = state?.['design'] as SavedDesign;
+    
+    if (navigation && state && 'design' in state && state['design']) {
+      this.design = state['design'] as SavedDesign;
+    }
     
     this.tiles$ = this.truchetService.getTiles();
     this.pattern$ = this.truchetService.getPattern();
   }
 
-  private design?: SavedDesign;
-
-  ngOnInit() {
+  private design?: SavedDesign;    private isFirstInit = true;
+  async ngOnInit() {
     if (this.design) {
-      // Reset to defaults first
-      const defaults = this.truchetService.getDefaultValues();
-      this.cols = defaults.gridSize.cols;
-      this.rows = defaults.gridSize.rows;
-      this.tileSize = defaults.tileSize;
-      this.strokeColor = defaults.primaryColor;
-      this.backgroundColor = defaults.secondaryColor;
-      this.strokeWidth = defaults.strokeWidth;
-      this.noiseScale = defaults.noiseScale;
-      this.noiseFrequency = defaults.noiseFrequency;
-
-      // Reset services
-      this.generatorState.resetState();
-      this.truchetService.resetToDefaults(false);
-
-      // Now load the design
-      this.currentDesignId = this.design.id;
-      this.cols = this.design.gridSize.cols;
-      this.rows = this.design.gridSize.rows;
-      this.strokeColor = this.design.primaryColor;
-      this.backgroundColor = this.design.secondaryColor;
-      this.strokeWidth = this.design.strokeWidth;
-      this.tileSize = this.design.tileSize;
-      this.noiseScale = this.design.noiseScale;
-      this.noiseFrequency = this.design.noiseFrequency;
-
-      // Update generator state with all values at once
-      this.generatorState.saveState({
-        rows: this.rows,
-        cols: this.cols,
-        tileSize: this.tileSize,
-        strokeColor: this.strokeColor,
-        backgroundColor: this.backgroundColor,
-        strokeWidth: this.strokeWidth,
-        noiseScale: this.noiseScale,
-        noiseFrequency: this.noiseFrequency
-      });
-
-      // Update visual styles and grid
-      this.updateStyle();
-      this.updateGridSize();
-
-      // Finally load the saved design pattern and tiles into the service
-      this.truchetService.loadSavedDesign(this.design);
+      // Load design if explicitly navigated from gallery
+      this.loadSavedDesign(this.design);
+      this.design = undefined; // Clear design after loading
     } else {
-      // If there's no saved design in navigation state, load from generator state
-      const savedState = this.generatorState.getState();
-      this.rows = savedState.rows;
-      this.cols = savedState.cols;
-      this.tileSize = savedState.tileSize;
-      this.strokeColor = savedState.strokeColor;
-      this.backgroundColor = savedState.backgroundColor;
-      this.strokeWidth = savedState.strokeWidth;
-      this.noiseScale = savedState.noiseScale;
-      this.noiseFrequency = savedState.noiseFrequency;
+      // Restore state from generator state service
+      if (!await this.restoreGridState() && this.isFirstInit) {
+        // Only reset to defaults on first initialization if no state exists
+        this.resetToDefaults();
+        this.isFirstInit = false;
+      }
+    }
+  }
+  private async loadSavedDesign(design: SavedDesign) {
+    // Reset to defaults without updating grid
+    await this.resetToDefaults(false);
 
-      this.updateStyle();
-      this.updateGridSize();
+    // Load design properties
+    this.currentDesignId = design.id;
+    this.cols = design.gridSize.cols;
+    this.rows = design.gridSize.rows;
+    this.strokeColor = design.primaryColor;
+    this.backgroundColor = design.secondaryColor;
+    this.strokeWidth = design.strokeWidth;
+    this.tileSize = design.tileSize;
+    this.noiseScale = design.noiseScale;
+    this.noiseFrequency = design.noiseFrequency;
+
+    // Update visual styles first
+    this.updateStyle();
+
+    // Set the pattern type
+    this.truchetService.setPattern(design.pattern as 'curve' | 'triangle');
+
+    // Create grid with saved rotations
+    const gridRows = [];
+    let rotationIndex = 0;
+    
+    for (let i = 0; i < this.rows; i++) {
+      const row = [];
+      for (let j = 0; j < this.cols; j++) {
+        row.push({
+          rotation: design.tileRotations[rotationIndex++],
+          id: `tile-${i}-${j}`,
+          pattern: design.pattern as 'curve' | 'triangle'
+        });
+      }
+      gridRows.push(row);
+    }
+    
+    // Update grid with saved rotations
+    this.truchetService['tiles'].next(gridRows);
+
+    // Save complete state
+    await this.saveGridState();
+  }  private async resetToDefaults(updateGrid: boolean = true) {
+    // Get default values from service
+    const defaults = this.truchetService.getDefaultValues();
+
+    // Clear current design ID
+    this.currentDesignId = undefined;
+
+    // Reset component properties
+    this.cols = defaults.gridSize.cols;
+    this.rows = defaults.gridSize.rows;
+    this.tileSize = defaults.tileSize;
+    this.strokeColor = defaults.primaryColor;
+    this.backgroundColor = defaults.secondaryColor;
+    this.strokeWidth = defaults.strokeWidth;
+    this.noiseScale = defaults.noiseScale;
+    this.noiseFrequency = defaults.noiseFrequency;
+    this.noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
+
+    // Reset services with new values
+    this.truchetService.resetToDefaults(false);  // false to match reset grid behavior
+    this.generatorState.resetState();
+
+    // Update visual styles
+    this.updateStyle();
+    
+    // Only update grid if requested
+    if (updateGrid) {
+      await this.updateGridSize();
     }
   }
 
@@ -141,56 +167,72 @@ export class TruchetGridComponent implements OnInit {
       clearInterval(this.randomizeInterval);
       this.randomizeInterval = null;
     }
-  }
-  updateGridSize() {
+  }  async updateGridSize(applyNoise: boolean = false) {
+    // Temporarily store the current noise state
+    const currentNoiseState = this.truchetService.getNoiseEnabled();
+    
+    // Disable noise during grid size update
+    if (!applyNoise) {
+      this.truchetService.setNoiseEnabled(false);
+    }
+    
     this.truchetService.setGridSize(this.rows, this.cols);
-    this.generatorState.saveState({ rows: this.rows, cols: this.cols });
-  }
 
-  onTileRotate(row: number, col: number) {
+    // Get current tile rotations and save full state
+    const currentGrid = await firstValueFrom(this.truchetService.getTiles());
+    const tileRotations = currentGrid.flat().map(tile => tile.rotation);
+    const pattern = await firstValueFrom(this.truchetService.getPattern());
+
+    // Save complete state including pattern and rotations
+    this.generatorState.saveState({
+      rows: this.rows,
+      cols: this.cols,
+      tileSize: this.tileSize,
+      strokeColor: this.strokeColor,
+      backgroundColor: this.backgroundColor,
+      strokeWidth: this.strokeWidth,
+      noiseScale: this.noiseScale,
+      noiseFrequency: this.noiseFrequency,
+      pattern,
+      tileRotations
+    });
+    
+    // Restore previous noise state
+    this.truchetService.setNoiseEnabled(currentNoiseState);
+  }
+  async onTileRotate(row: number, col: number) {
     this.truchetService.rotateTile(row, col);
-  }  resetGrid() {
+    await this.saveGridState();
+  }async resetGrid() {
     // Stop auto-randomize if it's running
     if (this.isAutoRandomizing) {
       this.toggleAutoRandomize();
     }
 
-    // Get default values from service
-    const defaults = this.truchetService.getDefaultValues();
-
-    // Reset component state to defaults
-    this.rows = defaults.gridSize.rows;
-    this.cols = defaults.gridSize.cols;
-    this.tileSize = defaults.tileSize;
-    this.strokeColor = defaults.primaryColor;
-    this.backgroundColor = defaults.secondaryColor;
-    this.strokeWidth = defaults.strokeWidth;
-    this.noiseScale = defaults.noiseScale;
-    this.noiseFrequency = defaults.noiseFrequency;
-    
-    // Clear current design
-    this.currentDesignId = undefined;
-
-    // Reset both services to defaults
-    this.truchetService.resetToDefaults(false); // This resets pattern, grid, and noise
-    this.generatorState.resetState(); // This saves default state values
-
-    // Update styles after state is reset
-    this.updateStyle();
+    // Just use resetToDefaults with full grid update
+    await this.resetToDefaults(true);
   }
-
-  randomizeRotations() {
+  async randomizeRotations() {
     this.truchetService.randomizeRotations();
-  }  applyNoisePattern() {
+    await this.saveGridState();
+  }applyNoisePattern() {
+    // Enable noise and update parameters
+    this.truchetService.setNoiseEnabled(true);
     this.truchetService.setNoiseScale(this.noiseScale);
     this.truchetService.setNoiseFrequency(this.noiseFrequency);
+    
+    // Save state with updated noise parameters
     this.generatorState.saveState({
       noiseScale: this.noiseScale,
       noiseFrequency: this.noiseFrequency
     });
-  }
 
+    // Force a regeneration of the noise pattern
+    this.truchetService.regenerateNoise();
+  }
   regenerateNoise() {
+    // Enable noise and regenerate pattern
+    this.truchetService.setNoiseEnabled(true);
     this.truchetService.regenerateNoise();
   }
   updateStyle() {
@@ -211,9 +253,9 @@ export class TruchetGridComponent implements OnInit {
       tileSize: this.tileSize
     });
   }
-
-  setPattern(pattern: 'curve' | 'triangle') {
+  async setPattern(pattern: 'curve' | 'triangle') {
     this.truchetService.setPattern(pattern);
+    await this.saveGridState();
   }
   async saveAsImage() {
     // Use tile size to determine dimensions
@@ -435,5 +477,78 @@ export class TruchetGridComponent implements OnInit {
     modalRef.componentInstance.message = 'Design saved successfully!';
     await new Promise(resolve => setTimeout(resolve, 1500));
     modalRef.close();
+  }
+
+  // Save current grid state to the generator state service
+  private async saveGridState() {
+    const currentGrid = await firstValueFrom(this.truchetService.getTiles());
+    if (!currentGrid || !currentGrid.length) return;
+
+    const tileRotations = currentGrid.flat().map(tile => tile.rotation);
+    const pattern = await firstValueFrom(this.truchetService.getPattern());
+
+    this.generatorState.saveState({
+      rows: this.rows,
+      cols: this.cols,
+      tileSize: this.tileSize,
+      strokeColor: this.strokeColor,
+      backgroundColor: this.backgroundColor,
+      strokeWidth: this.strokeWidth,
+      noiseScale: this.noiseScale,
+      noiseFrequency: this.noiseFrequency,
+      pattern,
+      tileRotations
+    });
+  }
+
+  // Restore grid state with rotations from the generator state service
+  private async restoreGridState() {
+    const state = this.generatorState.getState();
+    if (!state) return false;
+
+    // Restore basic values
+    this.rows = state.rows ?? this.rows;
+    this.cols = state.cols ?? this.cols;
+    this.tileSize = state.tileSize ?? this.tileSize;
+    this.strokeColor = state.strokeColor ?? this.strokeColor;
+    this.backgroundColor = state.backgroundColor ?? this.backgroundColor;
+    this.strokeWidth = state.strokeWidth ?? this.strokeWidth;
+    this.noiseScale = state.noiseScale ?? this.noiseScale;
+    this.noiseFrequency = state.noiseFrequency ?? this.noiseFrequency;
+
+    // Update pattern first if it exists
+    if (state.pattern) {
+      this.truchetService.setPattern(state.pattern);
+    }
+
+    // Update visual style
+    this.updateStyle();
+
+    // Restore tile rotations if they exist
+    if (state.tileRotations && state.tileRotations.length === this.rows * this.cols) {
+      const currentPattern = await firstValueFrom(this.truchetService.getPattern());
+      const gridRows = [];
+      let rotationIndex = 0;
+      
+      for (let i = 0; i < this.rows; i++) {
+        const row = [];
+        for (let j = 0; j < this.cols; j++) {
+          row.push({
+            rotation: state.tileRotations[rotationIndex++],
+            id: `tile-${i}-${j}`,
+            pattern: currentPattern
+          });
+        }
+        gridRows.push(row);
+      }
+      
+      // Update the grid with saved rotations
+      this.truchetService['tiles'].next(gridRows);
+    } else {
+      // If no rotations or wrong size, just update grid size
+      this.updateGridSize();
+    }
+
+    return true;
   }
 }
