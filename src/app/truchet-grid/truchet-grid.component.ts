@@ -85,9 +85,18 @@ export class TruchetGridComponent implements OnInit {
     this.tileSize = design.tileSize;
     this.noiseScale = design.noiseScale;
     this.noiseFrequency = design.noiseFrequency;
+    if (design.noiseOffset) {
+      this.noiseOffset = design.noiseOffset;
+    }
 
     // Update visual styles first
     this.updateStyle();
+
+    // Configure noise parameters without applying
+    this.truchetService.setNoiseEnabled(false); // Start with noise disabled
+    this.truchetService.setNoiseScale(this.noiseScale);
+    this.truchetService.setNoiseFrequency(this.noiseFrequency);
+    this.truchetService.setNoiseOffset(this.noiseOffset);
 
     // Set the pattern type
     this.truchetService.setPattern(design.pattern as 'curve' | 'triangle');
@@ -181,9 +190,7 @@ export class TruchetGridComponent implements OnInit {
     // Get current tile rotations and save full state
     const currentGrid = await firstValueFrom(this.truchetService.getTiles());
     const tileRotations = currentGrid.flat().map(tile => tile.rotation);
-    const pattern = await firstValueFrom(this.truchetService.getPattern());
-
-    // Save complete state including pattern and rotations
+    const pattern = await firstValueFrom(this.truchetService.getPattern());    // Save complete state including pattern and rotations
     this.generatorState.saveState({
       rows: this.rows,
       cols: this.cols,
@@ -193,6 +200,8 @@ export class TruchetGridComponent implements OnInit {
       strokeWidth: this.strokeWidth,
       noiseScale: this.noiseScale,
       noiseFrequency: this.noiseFrequency,
+      noiseEnabled: currentNoiseState,
+      noiseOffset: this.noiseOffset,
       pattern,
       tileRotations
     });
@@ -215,20 +224,19 @@ export class TruchetGridComponent implements OnInit {
   async randomizeRotations() {
     this.truchetService.randomizeRotations();
     await this.saveGridState();
-  }applyNoisePattern() {
+  }  async applyNoisePattern() {
     // Enable noise and update parameters
     this.truchetService.setNoiseEnabled(true);
     this.truchetService.setNoiseScale(this.noiseScale);
     this.truchetService.setNoiseFrequency(this.noiseFrequency);
     
-    // Save state with updated noise parameters
-    this.generatorState.saveState({
-      noiseScale: this.noiseScale,
-      noiseFrequency: this.noiseFrequency
-    });
-
-    // Force a regeneration of the noise pattern
+    // Force a regeneration of the noise pattern with new offset
+    this.noiseOffset = { x: Math.random() * 1000, y: Math.random() * 1000 };
+    this.truchetService.setNoiseOffset(this.noiseOffset);
     this.truchetService.regenerateNoise();
+
+    // Save the complete grid state including noise parameters
+    await this.saveGridState();
   }
   regenerateNoise() {
     // Enable noise and regenerate pattern
@@ -415,15 +423,33 @@ export class TruchetGridComponent implements OnInit {
 
     // Always generate as PNG for thumbnails
     return this.generateSVGImage(totalWidth, totalHeight, true);
-  }  async saveDesign() {
-    // Get the current tile grid
+  }  async saveDesign() {    // Get the current tile grid
     const currentGrid = await firstValueFrom(this.truchetService.getTiles());
     if (!currentGrid || !currentGrid.length) return;
 
-    const tileRotations = currentGrid.flat().map((tile: TruchetTile) => tile.rotation);
+    // Store current noise state
+    const wasNoiseEnabled = this.truchetService.getNoiseEnabled();
+    
+    // Temporarily disable noise to get true rotations
+    if (wasNoiseEnabled) {
+      this.truchetService.setNoiseEnabled(false);
+    }
+
+    // Get the current grid state without noise influence
+    const updatedGrid = await firstValueFrom(this.truchetService.getTiles());
+    const tileRotations = updatedGrid.flat().map((tile: TruchetTile) => tile.rotation);
 
     // Get thumbnail image
     const thumbnail = await this.generateThumbnail();
+
+    // Restore noise state if it was enabled
+    if (wasNoiseEnabled) {
+      this.truchetService.setNoiseEnabled(true);
+      this.truchetService.setNoiseScale(this.noiseScale);
+      this.truchetService.setNoiseFrequency(this.noiseFrequency);
+      this.truchetService.setNoiseOffset(this.noiseOffset);
+      this.truchetService.applyNoisePattern();
+    }
 
     // If we have a current design ID, ask if user wants to update or create new
     if (this.currentDesignId !== undefined) {
@@ -477,16 +503,23 @@ export class TruchetGridComponent implements OnInit {
     modalRef.componentInstance.message = 'Design saved successfully!';
     await new Promise(resolve => setTimeout(resolve, 1500));
     modalRef.close();
-  }
-
-  // Save current grid state to the generator state service
+  }  // Save current grid state to the generator state service
   private async saveGridState() {
     const currentGrid = await firstValueFrom(this.truchetService.getTiles());
     if (!currentGrid || !currentGrid.length) return;
 
-    const tileRotations = currentGrid.flat().map(tile => tile.rotation);
+    // Store current noise state
+    const wasNoiseEnabled = this.truchetService.getNoiseEnabled();
+    
+    // Temporarily disable noise to get true rotations
+    this.truchetService.setNoiseEnabled(false, false);
+
+    // Get the current grid state without noise influence
+    const updatedGrid = await firstValueFrom(this.truchetService.getTiles());
+    const tileRotations = updatedGrid.flat().map(tile => tile.rotation);
     const pattern = await firstValueFrom(this.truchetService.getPattern());
 
+    // Save state with true rotations and noise settings
     this.generatorState.saveState({
       rows: this.rows,
       cols: this.cols,
@@ -496,11 +529,12 @@ export class TruchetGridComponent implements OnInit {
       strokeWidth: this.strokeWidth,
       noiseScale: this.noiseScale,
       noiseFrequency: this.noiseFrequency,
+      noiseEnabled: wasNoiseEnabled,
+      noiseOffset: this.noiseOffset,
       pattern,
       tileRotations
     });
   }
-
   // Restore grid state with rotations from the generator state service
   private async restoreGridState() {
     const state = this.generatorState.getState();
@@ -515,6 +549,7 @@ export class TruchetGridComponent implements OnInit {
     this.strokeWidth = state.strokeWidth ?? this.strokeWidth;
     this.noiseScale = state.noiseScale ?? this.noiseScale;
     this.noiseFrequency = state.noiseFrequency ?? this.noiseFrequency;
+    this.noiseOffset = state.noiseOffset ?? this.noiseOffset;
 
     // Update pattern first if it exists
     if (state.pattern) {
@@ -523,6 +558,12 @@ export class TruchetGridComponent implements OnInit {
 
     // Update visual style
     this.updateStyle();
+    
+    // Configure noise parameters without applying
+    this.truchetService.setNoiseEnabled(false); // Keep noise disabled
+    this.truchetService.setNoiseScale(this.noiseScale);
+    this.truchetService.setNoiseFrequency(this.noiseFrequency);
+    this.truchetService.setNoiseOffset(this.noiseOffset);
 
     // Restore tile rotations if they exist
     if (state.tileRotations && state.tileRotations.length === this.rows * this.cols) {

@@ -12,6 +12,8 @@ export class GeneratorStateService {  private state: {
     strokeWidth: number;
     noiseScale: number;
     noiseFrequency: number;
+    noiseEnabled?: boolean;
+    noiseOffset?: { x: number, y: number };
     pattern?: 'curve' | 'triangle';
     tileRotations?: number[];
   } = {

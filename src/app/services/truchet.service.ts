@@ -190,25 +190,30 @@ export class TruchetService {
       this.applyNoisePattern();
     }
   }
-
   getNoiseOffset(): { x: number; y: number } {
     return this.noiseOffset;
+  }
+
+  setNoiseOffset(offset: { x: number; y: number }): void {
+    this.noiseOffset = offset;
+    if (this.shouldApplyNoise) {
+      this.applyNoisePattern();
+    }
   }
 
   getCurrentPattern(): 'curve' | 'triangle' {
     return this.pattern.value;
   }
-  setNoiseEnabled(enabled: boolean) {
+  setNoiseEnabled(enabled: boolean, applyNoise: boolean = true) {
     this.shouldApplyNoise = enabled;
+    if (enabled && applyNoise) {
+      this.applyNoisePattern();
+    }
   }
 
   getNoiseEnabled(): boolean {
     return this.shouldApplyNoise;
-  }
-  loadSavedDesign(design: any) {
-    // Always start with noise disabled
-    this.shouldApplyNoise = false;
-
+  }  loadSavedDesign(design: any) {
     try {
       // Update pattern and grid size first
       this.pattern.next(design.pattern as 'curve' | 'triangle');
@@ -217,7 +222,7 @@ export class TruchetService {
         cols: design.gridSize.cols 
       });
 
-      // Update noise settings (but don't apply yet)
+      // Update noise settings
       this.noiseScale.next(design.noiseScale);
       this.noiseFrequency.next(design.noiseFrequency);
       this.noiseOffset = design.noiseOffset || { x: Math.random() * 1000, y: Math.random() * 1000 };
@@ -236,13 +241,19 @@ export class TruchetService {
           });
         }
         newGrid.push(row);
-      }
-
-      // Update grid with noise disabled
-      this.tiles.next(newGrid);
-    } finally {
-      // Leave noise disabled to match the "Reset Grid" behavior
+      }      // Update grid without triggering noise pattern
+      const wasNoiseEnabled = this.shouldApplyNoise;
       this.shouldApplyNoise = false;
+      this.tiles.next(newGrid);
+      this.shouldApplyNoise = wasNoiseEnabled;
+    } finally {
+      // Ensure noise state is properly restored
+      if (design.noiseEnabled) {
+        this.shouldApplyNoise = true;
+        this.applyNoisePattern();
+      } else {
+        this.shouldApplyNoise = false;
+      }
     }
   }  
   getDefaultValues() {
