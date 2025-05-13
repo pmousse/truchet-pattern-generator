@@ -5,10 +5,10 @@
         <ng-container *ngSwitchCase="'curve'">
           <path class="tile-path" d="M0,50 A50,50 0 0,0 50,0"/>
           <path class="tile-path" d="M50,100 A50,50 0 0,1 100,50"/>
-        </ng-container>
-        <!-- Triangular Pattern -->
+        </ng-container>        <!-- Triangular Pattern -->
         <ng-container *ngSwitchCase="'triangle'">
-          <path class="tile-path filled-path" d="M0,0 L100,0 L0,100 Z"/>
+          <!-- Added 0.5 overlap to eliminate gaps -->
+          <path class="tile-path filled-path" d="M-0.5,-0.5 L100.5,-0.5 L-0.5,100.5 Z"/>
         </ng-container>
       </ng-container>
     </g>

@@ -35,11 +35,10 @@
             [(ngModel)]="cols"
             (ngModelChange)="updateGridSize()"
             min="1" max="200" step="1">
-        </div>        <div class="input-group me-2" style="width: auto;">          <label class="input-group-text bg-dark text-light border-secondary">Tile Size</label>
-          <input type="number" class="form-control bg-dark text-light border-secondary" style="width: 80px;"
+        </div>        <div class="input-group me-2" style="width: auto;">          <label class="input-group-text bg-dark text-light border-secondary">Tile Size</label>          <input type="number" class="form-control bg-dark text-light border-secondary" style="width: 80px;"
             [(ngModel)]="tileSize"
             (ngModelChange)="updateStyle()"
-            min="25" max="200" step="25">
+            min="25" max="400" step="25">
         </div>
         <div class="input-group me-2" style="width: auto;">
           <label class="input-group-text bg-dark text-light border-secondary">Pattern</label>
@@ -94,7 +93,12 @@
       </div>
     </div>
   </nav>
-    <div class="grid-container">
+
+  <div class="grid-dimensions text-center mb-2">
+    {{ cols * tileSize }}×{{ rows * tileSize }} pixels
+  </div>
+
+  <div class="grid-container">
     <div class="grid" #gridContainer 
       [style.grid-template-columns]="'repeat(' + cols + ', ' + tileSize + 'px)'"
       [style.--tile-size.px]="tileSize">
